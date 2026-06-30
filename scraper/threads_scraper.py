@@ -1,96 +1,118 @@
 """
-Scraper Threads (Meta) — fokus menangkap NIAT BELI (demand-side).
+Scraper Threads (Meta) — fokus menangkap NIAT BELI (demand-side), PUBLIK.
 
-Strategi: untuk tiap kata kunci di config.THREADS_KEYWORDS (mis. "dicari rumah
-sidoarjo"), buka halaman pencarian publik Threads lalu ekstrak teks postingan
-dari blob JSON yang tertanam di HTML. Hasil disaring agar relevan wilayah &
-mengandung sinyal niat beli.
+Berbeda dengan Facebook Group (yang butuh sesi login pribadi & berisi data
+personal anggota tertutup), pencarian Threads bersifat PUBLIK — siapa pun bisa
+membukanya tanpa login, persis seperti mencari di Twitter/X. Karena itu
+otomasi di sini tidak punya masalah privasi yang sama; ini setara dengan
+scraping OLX (membaca konten publik).
 
-Catatan jujur: Threads tidak punya API pencarian publik resmi dan memakai
-rendering JavaScript + token internal, jadi pendekatan ini BEST-EFFORT — bisa
-berubah/diblokir sewaktu-waktu. BaseScraper memastikan kegagalan tidak
-menjatuhkan pipeline. Untuk hasil stabil, andalkan forward manual ke bot +
-scraper Facebook (sesi login).
+Catatan teknis penting: hasil pencarian Threads dirender penuh lewat
+JavaScript — permintaan HTTP biasa (requests) hanya mendapat kerangka kosong.
+Modul ini memakai Playwright (headless Chromium) untuk benar-benar merender
+halaman lalu mengekstrak teks tiap postingan dari DOM.
+
+Kata kunci PENDEK (2-3 kata, mis. "rumah sidoarjo") terbukti jauh lebih efektif
+daripada frasa panjang & spesifik (mis. "dicari rumah waru sidoarjo" sering
+"No results"), karena index pencarian Threads berbasis kemiripan luas.
 """
-import re
-import json
 import logging
 import time
-
-import requests
 
 import config
 from scraper.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
+SEARCH_URL = "https://www.threads.net/search?q={query}&serp_type=default"
+
+_EXTRACT_JS = """() => {
+    const links = Array.from(document.querySelectorAll('a[href*="/post/"]'));
+    const seen = new Set();
+    const out = [];
+    for (const a of links) {
+        const container = a.closest('div[data-pressable-container]');
+        if (!container) continue;
+        const text = container.innerText || '';
+        const href = a.href.split('?')[0];
+        if (seen.has(href) || text.length < 20) continue;
+        seen.add(href);
+        out.push({text, url: href});
+    }
+    return out;
+}"""
+
 
 class ThreadsScraper(BaseScraper):
     name = "Threads"
     buyer_focused = True
 
-    def __init__(self):
-        self.headers = {
-            "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                           "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "id-ID,id;q=0.9,en;q=0.8",
-            # App ID web Instagram/Threads; sering diperlukan untuk endpoint publik.
-            "X-IG-App-ID": "238260118697367",
-        }
-
     def fetch(self, limit: int) -> list:
-        results = []
-        seen = set()
-        for kw in config.THREADS_KEYWORDS:
-            try:
-                posts = self._search(kw)
-            except Exception as e:
-                logger.warning("Threads pencarian '%s' gagal: %s", kw, e)
-                posts = []
-            for text, url in posts:
-                key = text[:120]
-                if key in seen:
-                    continue
-                seen.add(key)
-                if not self.is_relevant_region(text):
-                    continue
-                results.append({
-                    "raw_text": text,
-                    "source_url": url,
-                    "source_name": "Threads",
-                })
-                if len(results) >= limit:
-                    break
-            time.sleep(1.5)
-            if len(results) >= limit:
-                break
+        try:
+            return self._fetch_with_playwright(limit)
+        except ImportError:
+            logger.warning("Playwright belum terpasang. Jalankan: pip install playwright "
+                          "&& python -m playwright install chromium")
+        except Exception as e:
+            logger.warning("Threads scraping gagal: %s", e)
 
-        if not results and config.USE_MOCK_DATA:
+        if config.USE_MOCK_DATA:
             return self._mock_data()
+        return []
+
+    def _fetch_with_playwright(self, limit: int) -> list:
+        from playwright.sync_api import sync_playwright
+
+        results = []
+        seen_urls = set()
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(
+                user_agent=("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+            )
+            try:
+                for keyword in config.THREADS_KEYWORDS:
+                    if len(results) >= limit:
+                        break
+                    try:
+                        posts = self._search_keyword(page, keyword)
+                    except Exception as e:
+                        logger.warning("Threads pencarian '%s' gagal: %s", keyword, e)
+                        continue
+                    for text, url in posts:
+                        if url in seen_urls:
+                            continue
+                        if not self.is_relevant_region(text):
+                            continue
+                        seen_urls.add(url)
+                        results.append({
+                            "raw_text": text[:600],
+                            "source_url": url,
+                            "source_name": "Threads",
+                        })
+                        if len(results) >= limit:
+                            break
+                    time.sleep(1)
+            finally:
+                browser.close()
+        logger.info("Threads: %d postingan relevan terkumpul dari %d kata kunci.",
+                    len(results), len(config.THREADS_KEYWORDS))
         return results
 
-    def _search(self, keyword: str):
-        url = f"https://www.threads.net/search?q={requests.utils.quote(keyword)}&serp_type=default"
-        resp = requests.get(url, headers=self.headers, timeout=20)
-        resp.raise_for_status()
-        return self._extract_posts(resp.text)
-
-    @staticmethod
-    def _extract_posts(html: str):
-        """Ambil caption postingan dari blob JSON yang tertanam di halaman."""
-        posts = []
-        # Threads menaruh data di banyak script JSON; cari field 'caption.text'
-        # dan 'code' (shortcode permalink) secara longgar.
-        for m in re.finditer(r'"caption"\s*:\s*\{[^}]*?"text"\s*:\s*"([^"]{15,})"', html):
-            text = bytes(m.group(1), "utf-8").decode("unicode_escape", errors="ignore")
-            posts.append((text.strip(), "https://www.threads.net/"))
-        # Fallback: ambil pasangan code + text terpisah bila pola di atas tak kena.
-        if not posts:
-            for m in re.finditer(r'"text"\s*:\s*"([^"]{25,})"', html):
-                text = bytes(m.group(1), "utf-8").decode("unicode_escape", errors="ignore")
-                posts.append((text.strip(), "https://www.threads.net/"))
-        return posts[:50]
+    def _search_keyword(self, page, keyword: str):
+        url = SEARCH_URL.format(query=keyword.replace(" ", "%20"))
+        page.goto(url, timeout=30000)
+        page.wait_for_timeout(2500)
+        items = page.evaluate(_EXTRACT_JS)
+        out = []
+        for item in items:
+            text = item.get("text", "").strip()
+            url_ = item.get("url", "")
+            if not text or "No results" in text:
+                continue
+            out.append((text, url_))
+        return out
 
     @staticmethod
     def _mock_data():
@@ -98,7 +120,4 @@ class ThreadsScraper(BaseScraper):
             {"raw_text": ("Dicari rumah daerah Rungkut atau Gunung Anyar Surabaya budget 700jt, "
                           "siap KPR untuk keluarga muda. Info dong sespp."),
              "source_url": "https://www.threads.net/@mock/post/1", "source_name": "Threads (Mock)"},
-            {"raw_text": ("Butuh ruko Sidoarjo kota / Gedangan buat usaha, budget sewa 50jt setahun, "
-                          "minta info yang available."),
-             "source_url": "https://www.threads.net/@mock/post/2", "source_name": "Threads (Mock)"},
         ]

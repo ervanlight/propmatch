@@ -50,10 +50,15 @@ FB_GROUPS = {
 }
 
 # Threads (Meta): kata kunci pencarian publik untuk menangkap niat beli/jual.
+# PENTING: kata kunci PENDEK (2-3 kata) terbukti jauh lebih efektif daripada
+# frasa panjang & spesifik — index pencarian Threads sering "No results" untuk
+# frasa yang terlalu rinci (mis. "dicari rumah waru sidoarjo"), tapi mengembalikan
+# banyak hasil untuk frasa umum (mis. "rumah sidoarjo", "jual rumah surabaya").
 THREADS_KEYWORDS = [
     k.strip() for k in os.getenv(
         "THREADS_KEYWORDS",
-        "dicari rumah sidoarjo,cari rumah surabaya,butuh rumah sidoarjo,wtb rumah surabaya",
+        "rumah sidoarjo,rumah surabaya,jual rumah surabaya,cari rumah surabaya,"
+        "ruko sidoarjo,tanah sidoarjo,kos surabaya,apartemen surabaya",
     ).split(",") if k.strip()
 ]
 

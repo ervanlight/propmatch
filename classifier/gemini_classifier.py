@@ -71,11 +71,21 @@ class GeminiClassifier:
             text = match.group(0)
         return json.loads(text)
 
+    # Circuit breaker: sekali kuota HARIAN terdeteksi habis, langsung berhenti
+    # mencoba untuk sisa proses berjalan ini (retry tidak akan membantu sampai
+    # kuota reset, jadi tidak perlu membuang waktu menunggu di tiap item).
+    _daily_quota_exhausted = False
+
     def classify_property(self, raw_text: str, source_url: str = "",
                           source_name: str = "", retries: int = 2) -> dict:
         if not self.client:
             return {"status": "TIDAK_RELEVAN", "source_url": source_url,
                     "error": "Gemini tidak aktif"}
+
+        if GeminiClassifier._daily_quota_exhausted:
+            return {"status": "TIDAK_RELEVAN", "source_url": source_url,
+                    "source_name": source_name, "raw_text": raw_text.strip(),
+                    "error": "Kuota harian Gemini habis (dilewati tanpa retry)"}
 
         from google.genai import types
         prompt = PROMPT_TEMPLATE.format(raw_text=raw_text.strip())
@@ -98,11 +108,16 @@ class GeminiClassifier:
                 return data
             except Exception as e:
                 last_err = e
+                msg = str(e)
+                if "RESOURCE_EXHAUSTED" in msg and "PerDay" in msg:
+                    logger.error("Kuota harian Gemini habis. Menghentikan retry untuk sisa proses.")
+                    GeminiClassifier._daily_quota_exhausted = True
+                    break
                 logger.warning("Klasifikasi gagal (percobaan %d): %s", attempt + 1, e)
                 if attempt < retries:
                     time.sleep(1.5 * (attempt + 1))  # backoff sederhana
 
-        logger.error("Klasifikasi menyerah setelah %d percobaan: %s", retries + 1, last_err)
+        logger.error("Klasifikasi menyerah: %s", last_err)
         return {"status": "TIDAK_RELEVAN", "source_url": source_url,
                 "source_name": source_name, "raw_text": raw_text.strip(),
                 "error": str(last_err)}
