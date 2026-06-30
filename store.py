@@ -11,6 +11,7 @@ Setiap record punya: id, created_at, updated_at, deleted_at (soft delete).
 """
 import os
 import json
+import hashlib
 import logging
 
 import config
@@ -22,6 +23,7 @@ PENJUAL_FILE = os.path.join(config.DATA_DIR, "penjual.json")
 PENCARI_FILE = os.path.join(config.DATA_DIR, "pencari.json")
 MATCH_FILE = os.path.join(config.DATA_DIR, "match.json")
 META_FILE = os.path.join(config.DATA_DIR, "meta.json")
+SEEN_FILE = os.path.join(config.DATA_DIR, "seen_raw.json")
 
 
 def _ensure_dir():
@@ -124,6 +126,33 @@ def soft_delete(status: str, listing_id: str) -> bool:
             _write(path, items)
             return True
     return False
+
+
+def raw_hash(source_url: str, raw_text: str) -> str:
+    """ID stabil untuk konten mentah SEBELUM diklasifikasi AI. Dipakai untuk
+    melewati panggilan AI sama sekali kalau konten ini sudah pernah diproses
+    (mis. listing OLX yang sama masih tayang berhari-hari) -- penghematan
+    biaya AI paling besar, karena listing sering muncul ulang di scraping
+    harian padahal isinya tidak berubah."""
+    basis = (source_url or "").strip().lower() or (raw_text or "").strip().lower()
+    return hashlib.sha1(basis.encode("utf-8")).hexdigest()[:16]
+
+
+def has_seen_raw(h: str) -> bool:
+    seen = _read(SEEN_FILE)
+    return h in (seen if isinstance(seen, list) else [])
+
+
+def mark_seen_raw(h: str) -> None:
+    seen = _read(SEEN_FILE)
+    if not isinstance(seen, list):
+        seen = []
+    if h not in seen:
+        seen.append(h)
+        # Cap ukuran file -- simpan 5000 hash terbaru saja supaya tidak tumbuh tanpa batas.
+        if len(seen) > 5000:
+            seen = seen[-5000:]
+        _write(SEEN_FILE, seen)
 
 
 def stats() -> dict:

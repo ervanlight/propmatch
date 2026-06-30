@@ -37,16 +37,25 @@ def run():
     raw_listings, per_source = scrape_all()
     logger.info("Listing mentah terkumpul: %d dari sumber %s", len(raw_listings), per_source)
 
-    # 2. Klasifikasi + simpan
+    # 2. Klasifikasi + simpan -- lewati panggilan AI untuk konten yang sudah
+    # pernah diproses sebelumnya (mis. listing OLX yang sama masih tayang
+    # beberapa hari berturut-turut). Ini penghematan biaya AI terbesar karena
+    # listing sering muncul ulang di scraping harian tanpa perubahan isi.
     classifier = ClaudeClassifier()
     penjual_baru = pencari_baru = 0
+    dilewati_sudah_pernah = 0
     for i, item in enumerate(raw_listings):
+        h = store.raw_hash(item.get("source_url", ""), item.get("raw_text", ""))
+        if store.has_seen_raw(h):
+            dilewati_sudah_pernah += 1
+            continue
         try:
             data = classifier.classify_property(
                 item.get("raw_text", ""),
                 item.get("source_url", ""),
                 item.get("source_name", ""),
             )
+            store.mark_seen_raw(h)  # tandai sudah diproses, apapun hasilnya
             result = store.save_listing(data)
             if result == "new":
                 if data.get("status") == "JUAL":
@@ -59,7 +68,8 @@ def run():
         if i < len(raw_listings) - 1 and config.CLAUDE_CALL_DELAY_SECONDS > 0:
             time.sleep(config.CLAUDE_CALL_DELAY_SECONDS)
 
-    logger.info("Listing baru — Penjual: %d, Pencari: %d", penjual_baru, pencari_baru)
+    logger.info("Listing baru — Penjual: %d, Pencari: %d | Dilewati (sudah pernah): %d",
+               penjual_baru, pencari_baru, dilewati_sudah_pernah)
 
     # 3. Matching deterministik + perkaya alasan dengan AI (opsional)
     top_matches = []

@@ -29,6 +29,7 @@ ATURAN PENTING:
 3. "kualitas_lead" = HOT jika ada sinyal mendesak (BU, butuh cepat, harga di bawah pasar, sangat dicari); WARM jika normal & jelas; COLD jika info minim/ragu.
 4. "lokasi" = kecamatan/daerah spesifik, contoh: "Waru, Sidoarjo".
 5. "tipe_properti" = salah satu dari: Rumah, Ruko, Kos, Tanah, Apartemen, Gudang, Villa, Lainnya.
+6. "catatan_ai" = MAKSIMAL 15 kata, satu kalimat singkat saja.
 """
 
 OUTPUT_SCHEMA = {
@@ -78,7 +79,7 @@ class ClaudeClassifier:
             try:
                 response = self.client.messages.create(
                     model=config.CLAUDE_MODEL,
-                    max_tokens=512,
+                    max_tokens=300,
                     output_config={"format": {"type": "json_schema", "schema": OUTPUT_SCHEMA}},
                     messages=[{"role": "user", "content": prompt}],
                 )
