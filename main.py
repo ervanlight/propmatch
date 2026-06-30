@@ -8,6 +8,7 @@ Dijalankan terjadwal tiap pagi (GitHub Actions / cron). Setiap tahap dibungkus
 penanganan error supaya satu kegagalan tidak menghentikan seluruh proses.
 """
 import os
+import time
 import logging
 
 import config
@@ -36,10 +37,11 @@ def run():
     raw_listings, per_source = scrape_all()
     logger.info("Listing mentah terkumpul: %d dari sumber %s", len(raw_listings), per_source)
 
-    # 2. Klasifikasi + simpan
+    # 2. Klasifikasi + simpan — diberi jeda antar panggilan supaya tidak
+    # menabrak batas permintaan-per-menit Gemini (lihat config.GEMINI_CALL_DELAY_SECONDS)
     classifier = GeminiClassifier()
     penjual_baru = pencari_baru = 0
-    for item in raw_listings:
+    for i, item in enumerate(raw_listings):
         try:
             data = classifier.classify_property(
                 item.get("raw_text", ""),
@@ -54,6 +56,9 @@ def run():
                     pencari_baru += 1
         except Exception as e:
             logger.error("Gagal memproses satu listing: %s", e)
+
+        if i < len(raw_listings) - 1 and not GeminiClassifier._daily_quota_exhausted:
+            time.sleep(config.GEMINI_CALL_DELAY_SECONDS)
 
     logger.info("Listing baru — Penjual: %d, Pencari: %d", penjual_baru, pencari_baru)
 

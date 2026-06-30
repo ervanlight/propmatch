@@ -21,6 +21,14 @@ GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
 # Model AI (Gemini gratis). Flash untuk klasifikasi (cepat & murah).
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
+# Jeda antar panggilan klasifikasi (detik). Tier gratis Gemini membatasi
+# permintaan per MENIT (terukur 5/menit di project ini, dokumentasi resmi
+# menyebut 10-15/menit tergantung tier) — bukan hanya per hari. Default 13
+# detik = aman untuk skenario terketat (5/menit) dengan buffer, dan untuk
+# volume harian Harvey (~30-50 listing) totalnya hanya ~6-11 menit, jauh di
+# bawah kuota menit GitHub Actions.
+GEMINI_CALL_DELAY_SECONDS = float(os.getenv("GEMINI_CALL_DELAY_SECONDS", "13"))
+
 # Mock data hanya untuk testing lokal. Di produksi WAJIB "0" supaya
 # data palsu tidak pernah mencemari database broker.
 USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "0") == "1"
