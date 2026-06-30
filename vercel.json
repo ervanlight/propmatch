@@ -2,10 +2,16 @@
   "version": 2,
   "builds": [
     { "src": "api/telegram.py", "use": "@vercel/python" },
-    { "src": "index.html", "use": "@vercel/static" }
+    { "src": "api/submit-lead.py", "use": "@vercel/python" },
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "landing.html", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/telegram", "dest": "api/telegram.py" },
+    { "src": "/api/submit-lead", "dest": "api/submit-lead.py" },
+    { "src": "/cari", "dest": "landing.html" },
+    { "src": "/jual", "dest": "landing.html" },
+    { "src": "/landing", "dest": "landing.html" },
     { "src": "/", "dest": "index.html" }
   ]
 }

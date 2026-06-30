@@ -150,10 +150,20 @@ def find_matches(daftar_jual: list, daftar_cari: list, threshold: int = None,
             sc = score_pair(jual, cari)
             if sc["skor"] < threshold:
                 continue
+            # Urgensi gabungan: ambil yang TERTINGGI antara penjual & pencari --
+            # satu pihak mendesak saja sudah cukup alasan untuk diprioritaskan.
+            urgency = max(jual.get("urgency_score", 0) or 0, cari.get("urgency_score", 0) or 0)
+            # Skor gabungan untuk URUTAN tampil: kecocokan tetap dominan (80%),
+            # urgensi menggeser lead yang mendesak ke atas tanpa mengubah
+            # makna 'skor' kecocokan aslinya (dipakai apa adanya di tempat lain).
+            combined = sc["skor"] * 0.8 + urgency * 0.2
+
             results.append({
                 "skor": sc["skor"],
                 "skor_10": sc["skor_10"],
                 "rincian": sc["rincian"],
+                "urgency_score": urgency,
+                "combined_score": round(combined, 1),
                 "alasan": _auto_reason(jual, cari, sc),
                 "alasan_ai": "",  # diisi belakangan oleh claude_matcher (opsional)
                 "penjual_id": jual.get("id"),
@@ -169,5 +179,5 @@ def find_matches(daftar_jual: list, daftar_cari: list, threshold: int = None,
                 "pencari_kontak": cari.get("kontak"),
             })
 
-    results.sort(key=lambda x: x["skor"], reverse=True)
+    results.sort(key=lambda x: x["combined_score"], reverse=True)
     return results[:top_n]

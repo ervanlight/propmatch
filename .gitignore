@@ -14,6 +14,10 @@ venv/
 local_db_*.json
 dashboard_output.html
 
+# File sementara SQLite (write-ahead log) -- tidak perlu ikut commit
+data/propmatch.db-wal
+data/propmatch.db-shm
+
 # OS
 .DS_Store
 Thumbs.db

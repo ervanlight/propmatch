@@ -15,7 +15,8 @@ Telegram dan menampilkannya di dashboard web.
 | **Dashboard web** | `index.html` | Lihat semua penjual, pencari, & top match (bisa dibuka di HP) |
 | **Otak AI** | `classifier/`, `matcher/` | Mengubah teks mentah jadi data & menilai kecocokan |
 | **Scraper multi-sumber** | `scraper/` | OLX (penjual), Threads & Facebook (terutama PEMBELI) |
-| **Database** | `data/*.json` | Penyimpanan dengan anti-duplikat & cap waktu |
+| **Database** | `data/propmatch.db` (SQLite) | Tabel `sellers`, `buyers`, `matches` — anti-duplikat, status lead, urgensi |
+| **Landing page** | `landing.html` + `api/submit-lead.py` | Form publik "cari" / "jual" → masuk database via Google Sheets |
 
 ## 🔎 Sumber Data (fokus menangkap PEMBELI)
 
@@ -53,8 +54,14 @@ Lihat iklan/postingan jual atau cari properti di WA grup, Facebook, atau OLX?
 - langsung mencarikan pasangan yang cocok beserta skor & alasannya.
 
 Perintah bot:
-- Ketik teks listing → otomatis diproses
-- `/top` → 5 match terbaik saat ini
+- Ketik teks listing → otomatis diproses, AI juga menghitung **skor urgensi**
+  (0-100) dari kata kunci seperti "BU", "cash", "nego tipis" — lead mendesak
+  otomatis naik ke atas di `/top`.
+- `/top` → 5 match terbaik (urutan: kecocokan + urgensi), lengkap tombol
+  **WA siap-klik** (draft pesan sudah terisi, tinggal review & kirim manual)
+- `/status <id> <status>` → update status lead langsung dari Telegram
+  (`new` / `contacted` / `negotiating` / `closed` / `lost`)
+- `/reminder` → lead "contacted" yang belum di-follow-up >3 hari
 - `/stats` → ringkasan jumlah data
 - `/help` → bantuan
 
@@ -91,6 +98,59 @@ Buka link dashboard (lihat bagian Deploy) untuk melihat & memfilter semua data.
    python main.py
    ```
 
+5. **(Kalau upgrade dari versi lama)** migrasikan data JSON lama ke database
+   SQLite baru (sekali saja, aman dijalankan berkali-kali):
+   ```
+   python migrate_json_to_sqlite.py
+   ```
+
+---
+
+## 🗄️ Database (SQLite)
+
+Database utama di `data/propmatch.db`, tiga tabel inti: `sellers`, `buyers`,
+`matches`. Setiap listing punya `source` (asal data: olx/threads/facebook/
+telegram_forward/landing_page), `lead_status` (new/contacted/negotiating/
+closed/lost — dikelola lewat `/status`), dan `urgency_score` (0-100, dari
+kata kunci mendesak).
+
+File `.db` ikut di-commit oleh GitHub Actions setiap pipeline jalan (sama
+seperti file JSON dulu) supaya data persisten antar-run.
+
+---
+
+## 📝 Landing Page (form publik "cari" / "jual")
+
+`landing.html` adalah halaman terpisah dari dashboard — link untuk dibagikan
+ke calon klien. Karena form-nya butuh backend (submit data), dan Vercel
+serverless **tidak** punya penyimpanan file permanen, alurnya:
+
+```
+landing.html → api/submit-lead.py → Google Sheets (kotak surat sementara)
+                                          ↓
+                            main.py (pipeline harian) menarik lead baru
+                                          ↓
+                                data/propmatch.db (SQLite)
+```
+
+**Setup (sekali saja):**
+1. Buat Google Sheet baru (boleh kosong, tab akan dibuat otomatis).
+2. Buat Service Account di [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts),
+   aktifkan Google Sheets API, download file JSON kredensialnya.
+3. Share Google Sheet tadi ke email service account (lihat field `client_email`
+   di file JSON) dengan akses **Editor**.
+4. Isi `.env`:
+   - `GOOGLE_SHEET_URL` — link Sheet tadi.
+   - Untuk jalan di laptop: `GOOGLE_CREDENTIALS_FILE=credentials.json` (taruh
+     file JSON di folder ini, sudah ter-`.gitignore`).
+   - Untuk deploy Vercel: `GOOGLE_CREDENTIALS_JSON` — isi **seluruh konten**
+     file JSON tadi sebagai satu baris (lebih aman daripada commit file).
+5. Deploy `landing.html` + `api/submit-lead.py` (sudah terdaftar di
+   `vercel.json`, akses via `/landing`, `/cari`, atau `/jual`).
+
+Lead yang masuk lewat landing page **tidak butuh panggilan AI sama sekali**
+(data form sudah terstruktur) — gratis sepenuhnya.
+
 ---
 
 ## 🌐 Membuat Dashboard "Live" (online)
@@ -115,6 +175,8 @@ Yang perlu dilakukan:
 1. Push project ini ke repo GitHub.
 2. Di **Settings → Secrets and variables → Actions**, tambahkan:
    `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `DASHBOARD_URL`.
+   Kalau pakai landing page, tambahkan juga `GOOGLE_CREDENTIALS_JSON` dan
+   `GOOGLE_SHEET_URL`.
 3. Selesai — laporan akan terkirim otomatis setiap hari. Bisa juga dijalankan
    manual lewat tab **Actions → Run workflow**.
 

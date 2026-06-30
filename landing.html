@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropMatch — Cari atau Jual Properti di Sidoarjo & Surabaya</title>
+  <meta name="description" content="Sampaikan kebutuhan properti Anda langsung ke broker. Cepat dicarikan kecocokan terbaik." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+  <div class="max-w-xl mx-auto p-4 sm:p-8">
+
+    <header class="text-center mb-6">
+      <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">🏠 PropMatch</h1>
+      <p class="text-gray-500 mt-1 text-sm">Sampaikan kebutuhan properti Anda — kami carikan kecocokan terbaik di Sidoarjo &amp; Surabaya.</p>
+    </header>
+
+    <!-- Tabs -->
+    <div class="flex rounded-xl bg-gray-200 p-1 mb-6">
+      <button id="tab-btn-cari" onclick="switchTab('cari')" class="flex-1 py-2.5 rounded-lg text-sm font-semibold transition">🔍 Saya Cari</button>
+      <button id="tab-btn-jual" onclick="switchTab('jual')" class="flex-1 py-2.5 rounded-lg text-sm font-semibold transition">🏠 Saya Mau Jual</button>
+    </div>
+
+    <!-- FORM: Cari -->
+    <div id="tab-cari" class="tab-panel active">
+      <form id="form-cari" class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Nama <span class="text-red-500">*</span></label>
+          <input required name="nama" type="text" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Nama Anda" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Nomor WhatsApp <span class="text-red-500">*</span></label>
+          <input required name="wa" type="tel" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="08xxxxxxxxxx" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Lokasi yang dicari <span class="text-red-500">*</span></label>
+          <input required name="lokasi" type="text" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Mis. Waru, Sidoarjo" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">Budget min</label>
+            <input name="harga_min" type="text" inputmode="numeric" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Rp" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Budget maks</label>
+            <input name="harga_max" type="text" inputmode="numeric" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Rp" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Tipe properti</label>
+          <select name="tipe_properti" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none">
+            <option>Rumah</option><option>Ruko</option><option>Tanah</option>
+            <option>Apartemen</option><option>Kos</option><option>Gudang</option>
+            <option>Villa</option><option>Lainnya</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Catatan tambahan</label>
+          <textarea name="catatan" rows="3" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Mis. dekat sekolah, siap KPR, dll"></textarea>
+        </div>
+        <p class="text-xs text-gray-400">Data Anda hanya dipakai untuk mencarikan kecocokan properti.</p>
+        <button type="submit" class="w-full py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition">Kirim Kebutuhan</button>
+        <div class="form-status text-sm text-center"></div>
+      </form>
+    </div>
+
+    <!-- FORM: Jual -->
+    <div id="tab-jual" class="tab-panel">
+      <form id="form-jual" class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1">Nama <span class="text-red-500">*</span></label>
+          <input required name="nama" type="text" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" placeholder="Nama Anda" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Nomor WhatsApp <span class="text-red-500">*</span></label>
+          <input required name="wa" type="tel" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" placeholder="08xxxxxxxxxx" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Lokasi properti <span class="text-red-500">*</span></label>
+          <input required name="lokasi" type="text" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" placeholder="Mis. Gedangan, Sidoarjo" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Harga jual</label>
+          <input name="harga_min" type="text" inputmode="numeric" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" placeholder="Rp" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Tipe properti</label>
+          <select name="tipe_properti" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none">
+            <option>Rumah</option><option>Ruko</option><option>Tanah</option>
+            <option>Apartemen</option><option>Kos</option><option>Gudang</option>
+            <option>Villa</option><option>Lainnya</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Link foto (opsional)</label>
+          <input name="foto_url" type="url" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" placeholder="Link Google Drive / album foto" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Catatan tambahan</label>
+          <textarea name="catatan" rows="3" class="w-full px-3 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-green-500 outline-none" placeholder="Mis. luas tanah/bangunan, kondisi, urgensi jual"></textarea>
+        </div>
+        <p class="text-xs text-gray-400">Data Anda hanya dipakai untuk mencarikan kecocokan properti.</p>
+        <button type="submit" class="w-full py-3 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition">Kirim Listing</button>
+        <div class="form-status text-sm text-center"></div>
+      </form>
+    </div>
+
+    <footer class="mt-8 text-center text-xs text-gray-400">
+      PropMatch · Layanan pencocokan properti Sidoarjo &amp; Surabaya
+    </footer>
+  </div>
+
+  <script>
+    // Ganti URL ini kalau API di-deploy di domain berbeda dari landing.html.
+    var API_URL = '/api/submit-lead';
+
+    function switchTab(tab){
+      document.querySelectorAll('.tab-panel').forEach(el=>el.classList.remove('active'));
+      document.getElementById('tab-'+tab).classList.add('active');
+      ['cari','jual'].forEach(function(t){
+        var btn = document.getElementById('tab-btn-'+t);
+        if(t===tab){ btn.classList.add('bg-white','shadow','text-gray-900'); btn.classList.remove('text-gray-500'); }
+        else { btn.classList.remove('bg-white','shadow','text-gray-900'); btn.classList.add('text-gray-500'); }
+      });
+    }
+
+    function handleSubmit(form, kind){
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        var statusEl = form.querySelector('.form-status');
+        var btn = form.querySelector('button[type="submit"]');
+        var data = Object.fromEntries(new FormData(form).entries());
+        data.type = kind;
+
+        btn.disabled = true;
+        btn.textContent = 'Mengirim...';
+        statusEl.textContent = '';
+        statusEl.className = 'form-status text-sm text-center';
+
+        fetch(API_URL, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(data),
+        })
+        .then(function(res){ return res.json().then(function(body){ return {ok: res.ok, body: body}; }); })
+        .then(function(r){
+          if(r.ok && r.body.ok){
+            statusEl.textContent = '✅ ' + (r.body.message || 'Terkirim! Tim kami akan segera menghubungi Anda.');
+            statusEl.classList.add('text-green-600');
+            form.reset();
+          } else {
+            statusEl.textContent = '⚠️ ' + (r.body.error || 'Gagal mengirim. Coba lagi.');
+            statusEl.classList.add('text-red-600');
+          }
+        })
+        .catch(function(){
+          statusEl.textContent = '⚠️ Koneksi gagal. Coba lagi atau hubungi kami via WhatsApp.';
+          statusEl.classList.add('text-red-600');
+        })
+        .finally(function(){
+          btn.disabled = false;
+          btn.textContent = kind === 'cari' ? 'Kirim Kebutuhan' : 'Kirim Listing';
+        });
+      });
+    }
+
+    handleSubmit(document.getElementById('form-cari'), 'cari');
+    handleSubmit(document.getElementById('form-jual'), 'jual');
+    switchTab('cari');
+  </script>
+</body>
+</html>

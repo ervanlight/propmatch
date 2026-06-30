@@ -20,6 +20,7 @@ from matcher import engine
 from matcher.claude_matcher import ClaudeMatcher
 from delivery.telegram_bot import TelegramNotifier, build_daily_report
 from dashboard.generator import generate_dashboard
+from landing_sync import sync_landing_leads
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,12 +38,21 @@ def run():
     raw_listings, per_source = scrape_all()
     logger.info("Listing mentah terkumpul: %d dari sumber %s", len(raw_listings), per_source)
 
+    # 1b. Tarik lead baru dari landing page (relay Google Sheets) -- gratis,
+    # tidak perlu AI karena data form sudah terstruktur.
+    try:
+        landing_counts = sync_landing_leads()
+    except Exception as e:
+        logger.error("Gagal sync landing page: %s", e)
+        landing_counts = {"jual": 0, "cari": 0}
+
     # 2. Klasifikasi + simpan -- lewati panggilan AI untuk konten yang sudah
     # pernah diproses sebelumnya (mis. listing OLX yang sama masih tayang
     # beberapa hari berturut-turut). Ini penghematan biaya AI terbesar karena
     # listing sering muncul ulang di scraping harian tanpa perubahan isi.
     classifier = ClaudeClassifier()
-    penjual_baru = pencari_baru = 0
+    penjual_baru = landing_counts["jual"]
+    pencari_baru = landing_counts["cari"]
     dilewati_sudah_pernah = 0
     for i, item in enumerate(raw_listings):
         h = store.raw_hash(item.get("source_url", ""), item.get("raw_text", ""))

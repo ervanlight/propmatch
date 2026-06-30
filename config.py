@@ -16,6 +16,10 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
+# Alternatif: isi seluruh JSON service account langsung sebagai env var (untuk
+# Vercel serverless yang tidak bisa diandalkan menyimpan file rahasia secara
+# persisten). Kalau diisi, ini diutamakan daripada GOOGLE_CREDENTIALS_FILE.
+GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
 GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
 
 # Model AI (Claude, berbayar tapi sangat murah). Haiku 4.5 cukup untuk tugas

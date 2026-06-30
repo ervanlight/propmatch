@@ -5,7 +5,9 @@ Mengirim ringkasan ke Harvey: jumlah penjual/pencari baru, lead HOT, dan
 Top Match hari ini dalam format yang terbaca dalam 5 detik.
 """
 import html
+import re
 import logging
+import urllib.parse
 
 import requests
 
@@ -68,6 +70,44 @@ class TelegramNotifier:
         return chunks
 
 
+def normalize_phone(raw: str) -> str:
+    """Normalisasi nomor HP Indonesia ke format internasional 62xxx tanpa
+    simbol. Terima input mulai dari 0, +62, 62, atau dengan spasi/strip."""
+    digits = re.sub(r"[^\d]", "", raw or "")
+    if not digits:
+        return ""
+    if digits.startswith("0"):
+        digits = "62" + digits[1:]
+    elif digits.startswith("620"):
+        digits = "62" + digits[3:]
+    elif not digits.startswith("62"):
+        digits = "62" + digits
+    return digits
+
+
+def wa_link(kontak: str, pesan: str = "") -> str:
+    """Bangun link wa.me siap-klik dengan draft pesan pembuka terisi.
+    TIDAK pernah mengirim otomatis -- Harvey yang review & tekan kirim sendiri."""
+    nomor = normalize_phone(kontak)
+    if len(nomor) < 10:  # nomor terlalu pendek, kemungkinan bukan HP valid
+        return ""
+    url = f"https://wa.me/{nomor}"
+    if pesan:
+        url += f"?text={urllib.parse.quote(pesan)}"
+    return url
+
+
+def draft_pesan_penjual(lokasi: str, tipe: str) -> str:
+    return (f"Halo, saya tertarik dengan properti {tipe} di {lokasi} yang Anda "
+           f"tawarkan. Apakah masih tersedia? Mohon info lebih lanjut, terima kasih.")
+
+
+def draft_pesan_pencari(lokasi: str, budget) -> str:
+    return (f"Halo, saya broker properti. Saya punya beberapa pilihan properti "
+           f"di sekitar {lokasi} sesuai budget Anda (±{format_rupiah(budget)}). "
+           f"Boleh saya kirimkan info lengkapnya?")
+
+
 def format_rupiah(angka) -> str:
     try:
         angka = int(angka)
@@ -108,8 +148,16 @@ def build_daily_report(stats: dict, penjual_baru: int, pencari_baru: int,
             )
             if m.get("penjual_url"):
                 msg += f"🔗 <a href='{esc(m['penjual_url'])}'>Lihat iklan penjual</a>\n"
-            if m.get("penjual_kontak"):
-                msg += f"📞 {esc(m['penjual_kontak'])}\n"
+            wa_penjual = wa_link(m.get("penjual_kontak", ""),
+                                draft_pesan_penjual(m.get("penjual_lokasi", ""), m.get("penjual_tipe", "")))
+            if wa_penjual:
+                msg += f"💬 <a href='{esc(wa_penjual)}'>WA Penjual</a>"
+            wa_pencari = wa_link(m.get("pencari_kontak", ""),
+                                draft_pesan_pencari(m.get("pencari_lokasi", ""), m.get("pencari_budget")))
+            if wa_pencari:
+                msg += f" · <a href='{esc(wa_pencari)}'>WA Pencari</a>"
+            if wa_penjual or wa_pencari:
+                msg += "\n"
     else:
         msg += "🎯 Belum ada Top Match baru hari ini.\n"
 

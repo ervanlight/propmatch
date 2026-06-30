@@ -16,7 +16,8 @@ import store
 from classifier.claude_classifier import ClaudeClassifier
 from matcher import engine
 from matcher.claude_matcher import ClaudeMatcher
-from delivery.telegram_bot import esc, format_rupiah
+from delivery.telegram_bot import (esc, format_rupiah, wa_link,
+                                    draft_pesan_penjual, draft_pesan_pencari)
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +46,11 @@ def _build_help_text() -> str:
         "• <b>Forward / paste</b> pesan iklan atau permintaan properti (dari WA, FB, IG) ke sini.\n"
         "  Saya akan otomatis baca, simpan, lalu carikan pasangan yang cocok.\n\n"
         "Perintah:\n"
-        "• /top — lihat 5 match terbaik saat ini\n"
+        "• /top — lihat 5 match terbaik saat ini (HOT &amp; mendesak di atas)\n"
         "• /stats — ringkasan jumlah data\n"
+        "• /status &lt;id&gt; &lt;status&gt; — update status lead "
+        "(new/contacted/negotiating/closed/lost)\n"
+        "• /reminder — lead 'contacted' yang belum di-follow-up &gt;3 hari\n"
         "• /grup — link cepat ke grup Facebook properti Anda\n"
         "• /help — bantuan ini"
     )
@@ -68,18 +72,29 @@ HELP_TEXT = _build_help_text()
 
 def _match_summary_line(m: dict, i: int) -> str:
     alasan = m.get("alasan_ai") or m.get("alasan", "")
+    urgensi_badge = " 🔥" if m.get("urgency_score", 0) >= 50 else ""
     line = (
-        f"\n<b>#{i} · Skor {m.get('skor_10', 0)}/10</b>\n"
+        f"\n<b>#{i} · Skor {m.get('skor_10', 0)}/10{urgensi_badge}</b>\n"
         f"🏠 {esc(m.get('penjual_tipe', ''))} di {esc(m.get('penjual_lokasi', ''))}"
-        f" — {format_rupiah(m.get('penjual_harga'))}\n"
+        f" — {format_rupiah(m.get('penjual_harga'))}"
+        f" <code>#{esc(m.get('penjual_id', ''))}</code>\n"
         f"🔍 Pencari {esc(m.get('pencari_lokasi', ''))}"
-        f" (budget {format_rupiah(m.get('pencari_budget'))})\n"
+        f" (budget {format_rupiah(m.get('pencari_budget'))})"
+        f" <code>#{esc(m.get('pencari_id', ''))}</code>\n"
         f"💡 <i>{esc(alasan)}</i>\n"
     )
     if m.get("penjual_url"):
         line += f"🔗 <a href='{esc(m['penjual_url'])}'>Iklan penjual</a>\n"
-    if m.get("penjual_kontak"):
-        line += f"📞 {esc(m['penjual_kontak'])}\n"
+    wa_p = wa_link(m.get("penjual_kontak", ""),
+                  draft_pesan_penjual(m.get("penjual_lokasi", ""), m.get("penjual_tipe", "")))
+    wa_c = wa_link(m.get("pencari_kontak", ""),
+                  draft_pesan_pencari(m.get("pencari_lokasi", ""), m.get("pencari_budget")))
+    if wa_p:
+        line += f"💬 <a href='{esc(wa_p)}'>WA Penjual</a>"
+    if wa_c:
+        line += (" · " if wa_p else "") + f"<a href='{esc(wa_c)}'>WA Pencari</a>"
+    if wa_p or wa_c:
+        line += "\n"
     return line
 
 
@@ -109,13 +124,62 @@ def _handle_command(text: str) -> str:
             return "Belum ada match yang memenuhi skor minimum. Tambahkan lebih banyak data dulu 🙂"
         _get_ai_matcher().enrich_reasons(matches, limit=5)
         store.save_matches(matches)
-        out = "🎯 <b>TOP MATCH SAAT INI</b>\n"
+        out = "🎯 <b>TOP MATCH SAAT INI</b> (urutan: kecocokan + urgensi)\n"
         for i, m in enumerate(matches[:5], 1):
             out += _match_summary_line(m, i)
         return out
 
+    if cmd == "status":
+        return _handle_status_command(text)
+
+    if cmd == "reminder":
+        return _handle_reminder_command()
+
     return ("Perintah tidak dikenal. Kirim /help untuk bantuan, atau langsung "
             "forward/paste info properti ke sini.")
+
+
+VALID_LEAD_STATUS = ("new", "contacted", "negotiating", "closed", "lost")
+
+
+def _handle_status_command(text: str) -> str:
+    parts = text.strip().split()
+    if len(parts) != 3:
+        return ("Format: <code>/status &lt;id&gt; &lt;status&gt;</code>\n"
+                f"Status valid: {', '.join(VALID_LEAD_STATUS)}\n"
+                "Contoh: <code>/status c9af544f91cb346e contacted</code>\n"
+                "(ID bisa dilihat di hasil /top, tertera di bawah lokasi)")
+
+    listing_id, new_status = parts[1], parts[2].lower()
+    if new_status not in VALID_LEAD_STATUS:
+        return f"Status tidak dikenal. Pilih salah satu: {', '.join(VALID_LEAD_STATUS)}"
+
+    item = store.get_by_id(listing_id)
+    if not item:
+        return f"ID <code>{esc(listing_id)}</code> tidak ditemukan."
+
+    store.update_lead_status(listing_id, new_status)
+    label = f"{item.get('tipe_properti', '-')} di {item.get('lokasi_display') or item.get('lokasi', '-')}"
+    return f"✅ Status <b>{esc(label)}</b> diubah jadi <b>{esc(new_status)}</b>."
+
+
+def _handle_reminder_command() -> str:
+    stale = store.get_stale_contacted(days=3)
+    if not stale:
+        return "👍 Tidak ada lead 'contacted' yang terbengkalai >3 hari. Aman."
+
+    out = f"⏰ <b>{len(stale)} Lead Perlu Di-follow-up</b> (contacted &gt;3 hari, belum diupdate)\n"
+    for item in stale[:15]:
+        label = f"{item.get('tipe_properti', '-')} di {item.get('lokasi_display') or item.get('lokasi', '-')}"
+        wa = wa_link(item.get("kontak", ""),
+                    f"Halo, mau follow-up soal {item.get('tipe_properti', 'properti')} "
+                    f"di {item.get('lokasi_display') or item.get('lokasi', '')}. "
+                    f"Apakah masih berminat?")
+        out += (f"\n• <b>{esc(label)}</b> <code>#{esc(item.get('id', ''))}</code>"
+               f" (sejak {esc(item.get('updated_at', '')[:10])})")
+        if wa:
+            out += f" — <a href='{esc(wa)}'>WA</a>"
+    return out
 
 
 def _handle_listing(text: str) -> str:
@@ -127,19 +191,20 @@ def _handle_listing(text: str) -> str:
         return ("🤔 Saya tidak yakin ini info jual/cari properti. "
                 "Kalau ini memang listing, coba sertakan lokasi, harga, dan tipe propertinya.")
 
-    result = store.save_listing(data)
+    from models import normalize_listing
+    item = normalize_listing(data)
+    result = store.save_listing(data, source="telegram_forward")
+    listing_id = item["id"]
 
     label = "PENJUAL" if status == "JUAL" else "PENCARI"
     prefix = "✅ Tersimpan" if result == "new" else "♻️ Diperbarui (sudah ada sebelumnya)"
     reply = (
-        f"{prefix} sebagai <b>{label}</b>\n"
+        f"{prefix} sebagai <b>{label}</b> <code>#{esc(listing_id)}</code>\n"
         f"🏠 {esc(data.get('tipe_properti', '-'))} · 📍 {esc(data.get('lokasi', '-'))}\n"
         f"💰 {format_rupiah(data.get('harga'))} · 🔥 {esc(data.get('kualitas_lead', '-'))}\n"
     )
 
     # Cari match lawan jenis untuk listing yang baru masuk.
-    from models import normalize_listing
-    item = normalize_listing(data)
     if status == "JUAL":
         matches = engine.find_matches([item], store.get_pencari())
     else:
