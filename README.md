@@ -14,7 +14,32 @@ Telegram dan menampilkannya di dashboard web.
 | **Pipeline harian** | `main.py` | Scrape + klasifikasi + matching + laporan pagi otomatis |
 | **Dashboard web** | `index.html` | Lihat semua penjual, pencari, & top match (bisa dibuka di HP) |
 | **Otak AI** | `classifier/`, `matcher/` | Mengubah teks mentah jadi data & menilai kecocokan |
+| **Scraper multi-sumber** | `scraper/` | OLX (penjual), Threads & Facebook (terutama PEMBELI) |
 | **Database** | `data/*.json` | Penyimpanan dengan anti-duplikat & cap waktu |
+
+## 🔎 Sumber Data (fokus menangkap PEMBELI)
+
+Nilai utama sistem ini ada di **sisi permintaan (pembeli)** — siapa yang sedang
+aktif mencari, dengan budget & kriteria apa. Sisi penjual sudah melimpah di
+portal, sisi pembeli yang langka & berharga.
+
+| Sumber | File | Menangkap | Kebutuhan |
+|---|---|---|---|
+| OLX | `scraper/olx_scraper.py` | Penjual (best-effort) | — |
+| Threads | `scraper/threads_scraper.py` | Pembeli/penjual via kata kunci publik | `THREADS_KEYWORDS` |
+| Facebook Group | `scraper/facebook_scraper.py` | **Pembeli** (postingan "dicari…") | `FB_COOKIE` + `FB_GROUP_IDS` |
+| Forward manual ke bot | `bot.py` | Semua (paling andal) | — |
+
+Atur sumber aktif lewat `ENABLED_SCRAPERS=olx,threads,facebook` di `.env`.
+
+**Setup Facebook (sumber pembeli terkaya):**
+1. Login ke `mbasic.facebook.com` di browser, buka DevTools → Network → salin
+   header `Cookie` dari salah satu request. Tempel ke `FB_COOKIE`.
+2. Isi `FB_GROUP_IDS` dengan ID grup jual-beli properti yang Anda ikuti
+   (angka di URL grup), dipisah koma.
+3. Scraper hanya mengambil postingan bersinyal niat-beli & relevan wilayah.
+> Cookie bersifat rahasia — sudah masuk `.gitignore`, simpan sebagai secret.
+> Pendekatan ini mengakses data yang memang sudah bisa Anda lihat sebagai anggota grup.
 
 ---
 

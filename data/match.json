@@ -9,17 +9,17 @@
       "pembayaran": 5
     },
     "alasan": "Cocok karena lokasi berdekatan (Waru, Sidoarjo), harga sesuai budget, sama-sama rumah.",
-    "alasan_ai": "Lokasi Waru Sidoarjo cocok, harga penjual Rp650jt masuk budget pencari Rp680jt.",
-    "penjual_id": "afc16fdca6fc1ec6",
+    "alasan_ai": "Lokasi Sidoarjo berdekatan (Waru-Gedangan), budget pencari Rp680jt sangat cocok dengan harga jual Rp650jt.",
+    "penjual_id": "c9af544f91cb346e",
     "penjual_lokasi": "Waru, Sidoarjo",
     "penjual_harga": 650000000,
     "penjual_tipe": "rumah",
-    "penjual_url": "https://www.olx.co.id/item/rumah-waru-mock-1",
-    "penjual_kontak": "",
-    "pencari_id": "ae322c1841a3be42",
-    "pencari_lokasi": "Waru, Gedangan, Sidoarjo",
+    "penjual_url": "https://www.olx.co.id/item/contoh-waru",
+    "penjual_kontak": "081234567890",
+    "pencari_id": "2baa768fbd573bfc",
+    "pencari_lokasi": "Gedangan, Sidoarjo",
     "pencari_budget": 680000000,
-    "pencari_url": "",
+    "pencari_url": "https://facebook.com/groups/contoh/post",
     "pencari_kontak": "081255667788"
   }
 ]

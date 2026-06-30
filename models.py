@@ -79,12 +79,14 @@ def make_id(data: dict) -> str:
     if source and "mock" not in source:
         basis = source
     else:
+        # Gunakan raw_text (teks sumber asli, stabil) — BUKAN catatan_ai yang
+        # digenerate AI dan berubah tiap run sehingga merusak dedup.
         basis = "|".join([
             data.get("status", ""),
             normalize_lokasi(data.get("lokasi")),
             str(parse_harga(data.get("harga"))),
             normalize_tipe(data.get("tipe_properti")),
-            (data.get("catatan_ai") or data.get("raw_text") or "")[:80].lower(),
+            (data.get("raw_text") or data.get("catatan_ai") or "")[:120].lower(),
         ])
     return hashlib.sha1(basis.encode("utf-8")).hexdigest()[:16]
 

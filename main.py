@@ -13,7 +13,7 @@ import logging
 import config
 import store
 from models import now_iso
-from scraper.olx_scraper import OLXScraper
+from scraper import scrape_all
 from classifier.gemini_classifier import GeminiClassifier
 from matcher import engine
 from matcher.gemini_matcher import GeminiMatcher
@@ -32,13 +32,9 @@ DASHBOARD_URL = os.getenv("DASHBOARD_URL", "")
 def run():
     logger.info("=== Memulai pipeline harian PropMatch ===")
 
-    # 1. Scraping (best-effort, tidak pernah menghentikan pipeline)
-    raw_listings = []
-    try:
-        raw_listings = OLXScraper().scrape(limit=20)
-        logger.info("Scraper mengembalikan %d listing mentah.", len(raw_listings))
-    except Exception as e:
-        logger.error("Scraper gagal total: %s", e)
+    # 1. Scraping multi-sumber (OLX, Threads, Facebook) — best-effort, aman
+    raw_listings, per_source = scrape_all()
+    logger.info("Listing mentah terkumpul: %d dari sumber %s", len(raw_listings), per_source)
 
     # 2. Klasifikasi + simpan
     classifier = GeminiClassifier()

@@ -26,6 +26,50 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "0") == "1"
 
 # ---------------------------------------------------------------------------
+# Sumber data scraper (multi-sumber, pluggable)
+# ---------------------------------------------------------------------------
+# Daftar scraper yang diaktifkan, dipisah koma. Pilihan: olx, threads, facebook.
+ENABLED_SCRAPERS = [
+    s.strip().lower()
+    for s in os.getenv("ENABLED_SCRAPERS", "olx,threads,facebook").split(",")
+    if s.strip()
+]
+
+# Jumlah maksimum item mentah yang diambil per scraper per run.
+SCRAPER_LIMIT = int(os.getenv("SCRAPER_LIMIT", "25"))
+
+# Facebook (sumber PEMBELI terkaya). Scraping butuh sesi login Harvey sendiri:
+# isi cookie & ID grup yang dia ikuti. Tanpa ini, scraper Facebook dilewati.
+FB_COOKIE = os.getenv("FB_COOKIE", "")
+FB_GROUP_IDS = [g.strip() for g in os.getenv("FB_GROUP_IDS", "").split(",") if g.strip()]
+
+# Threads (Meta): kata kunci pencarian publik untuk menangkap niat beli/jual.
+THREADS_KEYWORDS = [
+    k.strip() for k in os.getenv(
+        "THREADS_KEYWORDS",
+        "dicari rumah sidoarjo,cari rumah surabaya,butuh rumah sidoarjo,wtb rumah surabaya",
+    ).split(",") if k.strip()
+]
+
+# Kata kunci niat-BELI (demand-side). Dipakai scraper untuk memfilter postingan
+# yang kemungkinan besar berasal dari calon pembeli/penyewa — aset paling
+# bernilai karena sisi penjual sudah melimpah di portal.
+BUYER_KEYWORDS = [
+    "dicari", "di cari", "cari rumah", "cari ruko", "cari tanah", "cari kos",
+    "butuh rumah", "butuh ruko", "butuh kontrakan", "butuh kos", "nyari",
+    "wtb", "want to buy", "minta info", "ada info", "rekomendasi rumah",
+    "budget", "bujet", "maksimal", "max ", "siapa ada", "info dong",
+]
+
+# Wilayah fokus untuk memfilter listing yang relevan secara geografis.
+TARGET_REGIONS = [
+    "sidoarjo", "surabaya", "waru", "gedangan", "sedati", "taman", "krian",
+    "sukodono", "candi", "buduran", "porong", "tanggulangin", "rungkut",
+    "gunung anyar", "wonocolo", "wiyung", "lakarsantri", "sukolilo", "gubeng",
+    "juanda", "aloha", "bungurasih",
+]
+
+# ---------------------------------------------------------------------------
 # Path penyimpanan data
 # ---------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

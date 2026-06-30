@@ -1,6 +1,8 @@
 # Secrets
 .env
 credentials.json
+*.cookie
+fb_cookie.txt
 
 # Python
 __pycache__/
