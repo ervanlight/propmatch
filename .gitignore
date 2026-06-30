@@ -1,0 +1,17 @@
+# Secrets
+.env
+credentials.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Data lokal lama (digantikan folder data/)
+local_db_*.json
+dashboard_output.html
+
+# OS
+.DS_Store
+Thumbs.db

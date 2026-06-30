@@ -1,0 +1,23 @@
+[
+  {
+    "status": "JUAL",
+    "lokasi": "waru, sidoarjo",
+    "lokasi_display": "Waru, Sidoarjo",
+    "harga": 650000000,
+    "tipe_properti": "rumah",
+    "LT_LB": "90/70",
+    "KT_KM": "3/0",
+    "kontak": "",
+    "urgensi": "Cepat",
+    "metode_bayar": "KPR",
+    "kualitas_lead": "HOT",
+    "catatan_ai": "Rumah minimalis di Waru Sidoarjo dijual cepat dengan harga nego dan bisa KPR, cocok untuk pembeli yang mencari properti siap huni.",
+    "source_url": "https://www.olx.co.id/item/rumah-waru-mock-1",
+    "source_name": "",
+    "raw_text": "",
+    "id": "afc16fdca6fc1ec6",
+    "created_at": "2026-06-30T19:04:25",
+    "updated_at": "2026-06-30T19:04:25",
+    "deleted_at": null
+  }
+]

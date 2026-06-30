@@ -1,0 +1,44 @@
+name: PropMatch Daily Pipeline
+
+on:
+  schedule:
+    # 23:00 UTC = 06:00 WIB (laporan pagi)
+    - cron: '0 23 * * *'
+  workflow_dispatch:  # tombol jalankan manual di GitHub
+
+permissions:
+  contents: write  # agar bisa commit balik data & dashboard
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run daily pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
+          USE_MOCK_DATA: '0'
+        run: python main.py
+
+      - name: Commit updated data & dashboard
+        run: |
+          git config --global user.name "PropMatch-Bot"
+          git config --global user.email "bot@propmatch.local"
+          git add data/ index.html
+          git commit -m "Auto-update data & dashboard [skip ci]" || echo "Tidak ada perubahan"
+          git push || echo "Tidak ada yang di-push"

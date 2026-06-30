@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PropMatch — Dashboard Properti Harvey</title>
+  <meta name="description" content="Dashboard otomasi prospek properti Sidoarjo & Surabaya. Penjual, pencari, dan top match harian." />
+  <meta property="og:title" content="PropMatch — Dashboard Properti Harvey" />
+  <meta property="og:description" content="Otomasi prospek properti Sidoarjo & Surabaya." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode: 'class' };
+  </script>
+  <style>
+    [x-cloak]{display:none}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    body{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100 transition-colors">
+  <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+
+    <!-- Header -->
+    <header class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">🏠 PropMatch</h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">Otomasi Prospek Properti — Sidoarjo &amp; Surabaya</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="last-update" class="text-xs text-gray-400"></span>
+        <button id="theme-toggle" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-800">🌙</button>
+      </div>
+    </header>
+
+    <!-- Stat cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400">Penjual Aktif</div>
+        <div id="stat-penjual" class="text-2xl font-bold text-gray-900 dark:text-white">0</div>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400">Pencari Aktif</div>
+        <div id="stat-pencari" class="text-2xl font-bold text-gray-900 dark:text-white">0</div>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400">Top Match</div>
+        <div id="stat-match" class="text-2xl font-bold text-blue-600">0</div>
+      </div>
+      <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+        <div class="text-xs text-gray-500 dark:text-gray-400">Lead HOT 🔥</div>
+        <div id="stat-hot" class="text-2xl font-bold text-red-500">0</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="border-b border-gray-200 dark:border-gray-700 mb-4">
+      <nav class="-mb-px flex gap-6 overflow-x-auto" aria-label="Tabs">
+        <button onclick="switchTab('topmatch')" id="tab-topmatch" class="tab-btn active whitespace-nowrap py-3 px-1 font-medium text-sm border-b-2 border-blue-600 text-blue-600">🎯 Top Match</button>
+        <button onclick="switchTab('penjual')" id="tab-penjual" class="tab-btn whitespace-nowrap py-3 px-1 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">🏠 Penjual</button>
+        <button onclick="switchTab('pencari')" id="tab-pencari" class="tab-btn whitespace-nowrap py-3 px-1 font-medium text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">🔍 Pencari</button>
+      </nav>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-4">
+      <input id="search" type="text" placeholder="Cari lokasi, tipe, catatan..." class="flex-1 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+      <select id="filter-tipe" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+        <option value="">Semua Tipe</option>
+        <option value="rumah">Rumah</option>
+        <option value="ruko">Ruko</option>
+        <option value="tanah">Tanah</option>
+        <option value="apartemen">Apartemen</option>
+        <option value="kos">Kos</option>
+        <option value="gudang">Gudang</option>
+        <option value="villa">Villa</option>
+      </select>
+      <select id="sort-by" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+        <option value="terbaru">Terbaru</option>
+        <option value="harga-asc">Harga termurah</option>
+        <option value="harga-desc">Harga termahal</option>
+      </select>
+    </div>
+
+    <!-- Top Match -->
+    <div id="content-topmatch" class="tab-content active">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="match-container"></div>
+    </div>
+
+    <!-- Penjual -->
+    <div id="content-penjual" class="tab-content">
+      <div id="penjual-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- Pencari -->
+    <div id="content-pencari" class="tab-content">
+      <div id="pencari-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </div>
+
+    <footer class="mt-10 text-center text-xs text-gray-400">
+      PropMatch · Sistem internal Harvey AI · Data diperbarui otomatis setiap pagi
+    </footer>
+  </div>
+
+  <script>
+    // Data disuntikkan oleh generator.py (jangan ubah baris penanda berikut)
+    var DB = {"penjual": [{"status": "JUAL", "lokasi": "waru, sidoarjo", "lokasi_display": "Waru, Sidoarjo", "harga": 650000000, "tipe_properti": "rumah", "LT_LB": "90/70", "KT_KM": "3/0", "kontak": "", "urgensi": "Cepat", "metode_bayar": "KPR", "kualitas_lead": "HOT", "catatan_ai": "Rumah minimalis di Waru Sidoarjo dijual cepat dengan harga nego dan bisa KPR, cocok untuk pembeli yang mencari properti siap huni.", "source_url": "https://www.olx.co.id/item/rumah-waru-mock-1", "source_name": "", "raw_text": "", "id": "afc16fdca6fc1ec6", "created_at": "2026-06-30T19:04:25", "updated_at": "2026-06-30T19:04:25", "deleted_at": null}], "pencari": [{"status": "CARI", "lokasi": "sidoarjo kota atau gedangan", "lokasi_display": "Sidoarjo kota atau Gedangan", "harga": 50000000, "tipe_properti": "ruko", "LT_LB": "", "KT_KM": "", "kontak": "", "urgensi": "Cepat", "metode_bayar": "Cash", "kualitas_lead": "HOT", "catatan_ai": "Pencari ruko di Sidoarjo/Gedangan dengan budget 50jt/tahun, butuh cepat untuk usaha kuliner.", "source_url": "https://www.facebook.com/groups/mock-post-2", "source_name": "", "raw_text": "", "id": "e944d58814714bd0", "created_at": "2026-06-30T19:04:25", "updated_at": "2026-06-30T19:04:25", "deleted_at": null}, {"status": "CARI", "lokasi": "sidoarjo kota atau gedangan", "lokasi_display": "Sidoarjo kota atau Gedangan", "harga": 50000000, "tipe_properti": "ruko", "LT_LB": "", "KT_KM": "", "kontak": "", "urgensi": "Cepat", "metode_bayar": "", "kualitas_lead": "HOT", "catatan_ai": "Pencari ruko di Sidoarjo/Gedangan dengan budget 50jt/tahun untuk usaha kuliner, butuh cepat.", "source_url": "https://www.facebook.com/groups/mock-post-2", "source_name": "", "raw_text": "", "id": "52e51f5e056576fb", "created_at": "2026-06-30T19:04:25", "updated_at": "2026-06-30T19:04:25", "deleted_at": null}, {"status": "CARI", "lokasi": "waru, gedangan, sidoarjo", "lokasi_display": "Waru, Gedangan, Sidoarjo", "harga": 680000000, "tipe_properti": "rumah", "LT_LB": "", "KT_KM": "", "kontak": "081255667788", "urgensi": "Normal", "metode_bayar": "KPR", "kualitas_lead": "WARM", "catatan_ai": "Pencari rumah untuk keluarga muda di Waru/Gedangan Sidoarjo dengan budget 680 juta, siap KPR.", "source_url": "", "source_name": "Telegram", "raw_text": "Dicari rumah daerah Waru atau Gedangan Sidoarjo, budget sekitar 680 juta, siap KPR. Untuk keluarga muda. Hub 081255667788", "id": "ae322c1841a3be42", "created_at": "2026-06-30T19:07:09", "updated_at": "2026-06-30T19:07:09", "deleted_at": null}], "match": [{"skor": 92, "skor_10": 9.2, "rincian": {"lokasi": 32, "harga": 35, "tipe": 20, "pembayaran": 5}, "alasan": "Cocok karena lokasi berdekatan (Waru, Sidoarjo), harga sesuai budget, sama-sama rumah.", "alasan_ai": "Lokasi Waru Sidoarjo cocok, harga penjual Rp650jt masuk budget pencari Rp680jt.", "penjual_id": "afc16fdca6fc1ec6", "penjual_lokasi": "Waru, Sidoarjo", "penjual_harga": 650000000, "penjual_tipe": "rumah", "penjual_url": "https://www.olx.co.id/item/rumah-waru-mock-1", "penjual_kontak": "", "pencari_id": "ae322c1841a3be42", "pencari_lokasi": "Waru, Gedangan, Sidoarjo", "pencari_budget": 680000000, "pencari_url": "", "pencari_kontak": "081255667788"}], "meta": {"last_run": "2026-06-30T19:07:37", "total_penjual": 1, "total_pencari": 3, "total_match": 1, "total_hot": 3}};
+
+    var currentTab = 'topmatch';
+
+    function fmtRupiah(n){
+      n = parseInt(n);
+      if(!n || n<=0) return 'N/A';
+      return 'Rp ' + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+    function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+    function badgeKualitas(k){
+      k = (k||'').toUpperCase();
+      var cls = {HOT:'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+                 WARM:'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                 COLD:'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'}[k]
+                 || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
+      var icon = {HOT:'🔥',WARM:'🌤️',COLD:'❄️'}[k] || '';
+      return '<span class="px-2 py-0.5 rounded-full text-xs font-semibold '+cls+'">'+icon+' '+esc(k||'-')+'</span>';
+    }
+
+    function waLink(kontak){
+      if(!kontak) return '';
+      var num = String(kontak).replace(/[^0-9]/g,'');
+      if(num.startsWith('0')) num = '62'+num.slice(1);
+      if(num.length < 8) return '<span class="text-xs text-gray-400">📞 '+esc(kontak)+'</span>';
+      return '<a href="https://wa.me/'+num+'" target="_blank" class="text-xs text-green-600 hover:underline">📱 WhatsApp</a>';
+    }
+
+    function listingCard(item){
+      return '<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 hover:shadow-md transition">'
+        + '<div class="flex justify-between items-start mb-2">'
+        +   '<div><div class="font-semibold capitalize text-gray-900 dark:text-white">'+esc(item.tipe_properti||'-')+'</div>'
+        +   '<div class="text-xs text-gray-500 dark:text-gray-400">📍 '+esc(item.lokasi_display||item.lokasi||'-')+'</div></div>'
+        +   badgeKualitas(item.kualitas_lead)
+        + '</div>'
+        + '<div class="text-lg font-bold text-blue-600 mb-2">'+fmtRupiah(item.harga)+'</div>'
+        + '<div class="flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400 mb-2">'
+        +   (item.LT_LB?'<span>📐 '+esc(item.LT_LB)+'</span>':'')
+        +   (item.KT_KM?'<span>🛏️ '+esc(item.KT_KM)+'</span>':'')
+        +   (item.metode_bayar?'<span>💳 '+esc(item.metode_bayar)+'</span>':'')
+        +   (item.urgensi?'<span>⏱️ '+esc(item.urgensi)+'</span>':'')
+        + '</div>'
+        + (item.catatan_ai?'<p class="text-xs text-gray-600 dark:text-gray-300 mb-2">'+esc(item.catatan_ai)+'</p>':'')
+        + '<div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">'
+        +   (item.source_url?'<a href="'+esc(item.source_url)+'" target="_blank" class="text-xs text-blue-600 hover:underline">🔗 Sumber</a>':'<span></span>')
+        +   waLink(item.kontak)
+        + '</div></div>';
+    }
+
+    function matchCard(m){
+      var alasan = m.alasan_ai || m.alasan || '';
+      var skor = m.skor_10!=null ? m.skor_10 : (m.skor/10).toFixed(1);
+      var skorCls = m.skor>=80?'bg-green-600':(m.skor>=65?'bg-blue-600':'bg-amber-500');
+      return '<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-t-4 border-blue-500 dark:border-blue-400 overflow-hidden relative">'
+        + '<div class="absolute top-0 right-0 '+skorCls+' text-white font-bold text-sm px-3 py-1 rounded-bl-lg">'+skor+'/10</div>'
+        + '<div class="p-4">'
+        +   '<div class="mb-3"><div class="text-xs text-gray-400 uppercase">Penjual</div>'
+        +     '<div class="font-semibold capitalize text-gray-900 dark:text-white">'+esc(m.penjual_tipe||'-')+' · '+esc(m.penjual_lokasi||'-')+'</div>'
+        +     '<div class="text-blue-600 font-bold">'+fmtRupiah(m.penjual_harga)+'</div></div>'
+        +   '<div class="mb-3"><div class="text-xs text-gray-400 uppercase">Pencari</div>'
+        +     '<div class="text-sm text-gray-700 dark:text-gray-300">'+esc(m.pencari_lokasi||'-')+' · budget '+fmtRupiah(m.pencari_budget)+'</div></div>'
+        +   '<p class="text-sm text-gray-600 dark:text-gray-300 mb-3 bg-gray-50 dark:bg-gray-700/50 rounded p-2">💡 '+esc(alasan)+'</p>'
+        +   '<div class="flex gap-2">'
+        +     (m.penjual_url?'<a href="'+esc(m.penjual_url)+'" target="_blank" class="flex-1 text-center text-xs px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Iklan Penjual</a>':'')
+        +     (m.penjual_kontak?waLink(m.penjual_kontak):'')
+        +   '</div>'
+        + '</div></div>';
+    }
+
+    function applyFilterSort(list){
+      var q = (document.getElementById('search').value||'').toLowerCase();
+      var tipe = document.getElementById('filter-tipe').value;
+      var sort = document.getElementById('sort-by').value;
+      var out = list.filter(function(it){
+        var hay = ((it.lokasi||'')+' '+(it.tipe_properti||'')+' '+(it.catatan_ai||'')+' '+(it.lokasi_display||'')).toLowerCase();
+        if(q && hay.indexOf(q)<0) return false;
+        if(tipe && (it.tipe_properti||'')!==tipe) return false;
+        return true;
+      });
+      if(sort==='harga-asc') out.sort((a,b)=>(a.harga||0)-(b.harga||0));
+      else if(sort==='harga-desc') out.sort((a,b)=>(b.harga||0)-(a.harga||0));
+      else out.sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+      return out;
+    }
+
+    function emptyState(msg){
+      return '<div class="col-span-full p-10 text-center text-gray-400 bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">'+msg+'</div>';
+    }
+
+    function render(){
+      var s = DB.meta || {};
+      document.getElementById('stat-penjual').textContent = (DB.penjual||[]).length;
+      document.getElementById('stat-pencari').textContent = (DB.pencari||[]).length;
+      document.getElementById('stat-match').textContent = (DB.match||[]).length;
+      var hot = (DB.penjual||[]).concat(DB.pencari||[]).filter(x=>(x.kualitas_lead||'').toUpperCase()==='HOT').length;
+      document.getElementById('stat-hot').textContent = hot;
+      if(s.last_run) document.getElementById('last-update').textContent = '🕒 Update: '+s.last_run.replace('T',' ');
+
+      // Top match
+      var mc = document.getElementById('match-container');
+      var matches = DB.match||[];
+      mc.innerHTML = matches.length ? matches.map(matchCard).join('') : emptyState('Belum ada match dengan skor cukup. Tambahkan data lewat bot Telegram.');
+
+      // Penjual
+      var pj = applyFilterSort((DB.penjual||[]).slice());
+      document.getElementById('penjual-container').innerHTML = pj.length ? pj.map(listingCard).join('') : emptyState('Belum ada data penjual.');
+
+      // Pencari
+      var pc = applyFilterSort((DB.pencari||[]).slice());
+      document.getElementById('pencari-container').innerHTML = pc.length ? pc.map(listingCard).join('') : emptyState('Belum ada data pencari.');
+    }
+
+    function switchTab(tab){
+      currentTab = tab;
+      document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el=>{el.classList.remove('active','border-blue-600','text-blue-600');el.classList.add('border-transparent','text-gray-500');});
+      document.getElementById('content-'+tab).classList.add('active');
+      var btn=document.getElementById('tab-'+tab);
+      btn.classList.add('active','border-blue-600','text-blue-600');
+      btn.classList.remove('border-transparent','text-gray-500');
+    }
+
+    // Dark mode
+    (function(){
+      var saved = localStorage.getItem('pm-theme');
+      if(saved==='dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)){
+        document.documentElement.classList.add('dark');
+      }
+      document.getElementById('theme-toggle').addEventListener('click',function(){
+        document.documentElement.classList.toggle('dark');
+        localStorage.setItem('pm-theme', document.documentElement.classList.contains('dark')?'dark':'light');
+      });
+    })();
+
+    ['search','filter-tipe','sort-by'].forEach(function(id){
+      document.getElementById(id).addEventListener('input', render);
+    });
+
+    window.onload = render;
+  </script>
+</body>
+</html>
