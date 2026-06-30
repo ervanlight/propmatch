@@ -13,9 +13,9 @@ import logging
 
 import config
 import store
-from classifier.gemini_classifier import GeminiClassifier
+from classifier.claude_classifier import ClaudeClassifier
 from matcher import engine
-from matcher.gemini_matcher import GeminiMatcher
+from matcher.claude_matcher import ClaudeMatcher
 from delivery.telegram_bot import esc, format_rupiah
 
 logger = logging.getLogger(__name__)
@@ -27,14 +27,14 @@ _ai_matcher = None
 def _get_classifier():
     global _classifier
     if _classifier is None:
-        _classifier = GeminiClassifier()
+        _classifier = ClaudeClassifier()
     return _classifier
 
 
 def _get_ai_matcher():
     global _ai_matcher
     if _ai_matcher is None:
-        _ai_matcher = GeminiMatcher()
+        _ai_matcher = ClaudeMatcher()
     return _ai_matcher
 
 

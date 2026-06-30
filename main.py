@@ -15,9 +15,9 @@ import config
 import store
 from models import now_iso
 from scraper import scrape_all
-from classifier.gemini_classifier import GeminiClassifier
+from classifier.claude_classifier import ClaudeClassifier
 from matcher import engine
-from matcher.gemini_matcher import GeminiMatcher
+from matcher.claude_matcher import ClaudeMatcher
 from delivery.telegram_bot import TelegramNotifier, build_daily_report
 from dashboard.generator import generate_dashboard
 
@@ -37,9 +37,8 @@ def run():
     raw_listings, per_source = scrape_all()
     logger.info("Listing mentah terkumpul: %d dari sumber %s", len(raw_listings), per_source)
 
-    # 2. Klasifikasi + simpan — diberi jeda antar panggilan supaya tidak
-    # menabrak batas permintaan-per-menit Gemini (lihat config.GEMINI_CALL_DELAY_SECONDS)
-    classifier = GeminiClassifier()
+    # 2. Klasifikasi + simpan
+    classifier = ClaudeClassifier()
     penjual_baru = pencari_baru = 0
     for i, item in enumerate(raw_listings):
         try:
@@ -57,8 +56,8 @@ def run():
         except Exception as e:
             logger.error("Gagal memproses satu listing: %s", e)
 
-        if i < len(raw_listings) - 1 and not GeminiClassifier._daily_quota_exhausted:
-            time.sleep(config.GEMINI_CALL_DELAY_SECONDS)
+        if i < len(raw_listings) - 1 and config.CLAUDE_CALL_DELAY_SECONDS > 0:
+            time.sleep(config.CLAUDE_CALL_DELAY_SECONDS)
 
     logger.info("Listing baru — Penjual: %d, Pencari: %d", penjual_baru, pencari_baru)
 
@@ -67,7 +66,7 @@ def run():
     try:
         top_matches = engine.find_matches(store.get_penjual(), store.get_pencari())
         if top_matches:
-            GeminiMatcher().enrich_reasons(top_matches, limit=5)
+            ClaudeMatcher().enrich_reasons(top_matches, limit=5)
         store.save_matches(top_matches)
         logger.info("Matching selesai: %d pasangan di atas threshold.", len(top_matches))
     except Exception as e:

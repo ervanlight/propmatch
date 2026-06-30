@@ -6,7 +6,7 @@ aturan yang jelas: kedekatan lokasi, kecocokan budget vs harga, tipe properti,
 dan metode pembayaran. Hasilnya konsisten, instan, gratis, dan bisa dijelaskan
 ke Harvey tanpa bergantung pada kuota API AI.
 
-Gemini (matcher/gemini_matcher.py) dipakai terpisah HANYA untuk menulis kalimat
+Claude (matcher/claude_matcher.py) dipakai terpisah HANYA untuk menulis kalimat
 alasan yang enak dibaca pada beberapa match teratas.
 """
 import logging
@@ -155,7 +155,7 @@ def find_matches(daftar_jual: list, daftar_cari: list, threshold: int = None,
                 "skor_10": sc["skor_10"],
                 "rincian": sc["rincian"],
                 "alasan": _auto_reason(jual, cari, sc),
-                "alasan_ai": "",  # diisi belakangan oleh gemini_matcher (opsional)
+                "alasan_ai": "",  # diisi belakangan oleh claude_matcher (opsional)
                 "penjual_id": jual.get("id"),
                 "penjual_lokasi": jual.get("lokasi_display") or jual.get("lokasi"),
                 "penjual_harga": jual.get("harga"),

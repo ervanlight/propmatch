@@ -70,7 +70,7 @@ Buka link dashboard (lihat bagian Deploy) untuk melihat & memfilter semua data.
 ## ⚙️ Setup Pertama Kali (sekali saja)
 
 1. **Isi file `.env`** (salin dari `.env.example`):
-   - `GEMINI_API_KEY` — dari https://aistudio.google.com/apikey (gratis)
+   - `ANTHROPIC_API_KEY` — dari https://console.anthropic.com/settings/keys (berbayar, ~$0.0016/klasifikasi pakai Haiku 4.5)
    - `TELEGRAM_BOT_TOKEN` — buat bot lewat @BotFather di Telegram
    - `TELEGRAM_CHAT_ID` — ID chat Anda (kirim pesan ke bot lalu cek
      `https://api.telegram.org/bot<TOKEN>/getUpdates`)
@@ -114,7 +114,7 @@ File `.github/workflows/daily_scrape.yml` sudah menjadwalkan pipeline tiap pagi.
 Yang perlu dilakukan:
 1. Push project ini ke repo GitHub.
 2. Di **Settings → Secrets and variables → Actions**, tambahkan:
-   `GEMINI_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `DASHBOARD_URL`.
+   `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `DASHBOARD_URL`.
 3. Selesai — laporan akan terkirim otomatis setiap hari. Bisa juga dijalankan
    manual lewat tab **Actions → Run workflow**.
 

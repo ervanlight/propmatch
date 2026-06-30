@@ -12,22 +12,20 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # Kredensial & integrasi (semua dari environment, tidak pernah hardcode)
 # ---------------------------------------------------------------------------
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
 GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
 
-# Model AI (Gemini gratis). Flash untuk klasifikasi (cepat & murah).
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+# Model AI (Claude, berbayar tapi sangat murah). Haiku 4.5 cukup untuk tugas
+# ekstraksi/klasifikasi sederhana ini -- ~3.000 klasifikasi per $5.
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5")
 
-# Jeda antar panggilan klasifikasi (detik). Tier gratis Gemini membatasi
-# permintaan per MENIT (terukur 5/menit di project ini, dokumentasi resmi
-# menyebut 10-15/menit tergantung tier) — bukan hanya per hari. Default 13
-# detik = aman untuk skenario terketat (5/menit) dengan buffer, dan untuk
-# volume harian Harvey (~30-50 listing) totalnya hanya ~6-11 menit, jauh di
-# bawah kuota menit GitHub Actions.
-GEMINI_CALL_DELAY_SECONDS = float(os.getenv("GEMINI_CALL_DELAY_SECONDS", "13"))
+# Jeda antar panggilan klasifikasi (detik). Tier berbayar Claude punya limit
+# permintaan/menit yang jauh lebih longgar daripada tier gratis Gemini, jadi
+# default 0 (tanpa jeda). Naikkan lewat .env kalau suatu saat terjadi 429.
+CLAUDE_CALL_DELAY_SECONDS = float(os.getenv("CLAUDE_CALL_DELAY_SECONDS", "0"))
 
 # Mock data hanya untuk testing lokal. Di produksi WAJIB "0" supaya
 # data palsu tidak pernah mencemari database broker.
