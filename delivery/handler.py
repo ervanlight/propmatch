@@ -11,6 +11,7 @@ Logika di sini dipakai bersama oleh bot polling (bot.py) dan webhook (api/telegr
 """
 import logging
 
+import config
 import store
 from classifier.gemini_classifier import GeminiClassifier
 from matcher import engine
@@ -37,16 +38,32 @@ def _get_ai_matcher():
     return _ai_matcher
 
 
-HELP_TEXT = (
-    "🤖 <b>PropMatch — Asisten Properti Harvey</b>\n\n"
-    "Cara pakai paling cepat:\n"
-    "• <b>Forward / paste</b> pesan iklan atau permintaan properti (dari WA, FB, IG) ke sini.\n"
-    "  Saya akan otomatis baca, simpan, lalu carikan pasangan yang cocok.\n\n"
-    "Perintah:\n"
-    "• /top — lihat 5 match terbaik saat ini\n"
-    "• /stats — ringkasan jumlah data\n"
-    "• /help — bantuan ini"
-)
+def _build_help_text() -> str:
+    text = (
+        "🤖 <b>PropMatch — Asisten Properti Harvey</b>\n\n"
+        "Cara pakai paling cepat:\n"
+        "• <b>Forward / paste</b> pesan iklan atau permintaan properti (dari WA, FB, IG) ke sini.\n"
+        "  Saya akan otomatis baca, simpan, lalu carikan pasangan yang cocok.\n\n"
+        "Perintah:\n"
+        "• /top — lihat 5 match terbaik saat ini\n"
+        "• /stats — ringkasan jumlah data\n"
+        "• /grup — link cepat ke grup Facebook properti Anda\n"
+        "• /help — bantuan ini"
+    )
+    return text
+
+
+def _build_groups_text() -> str:
+    if not config.FB_GROUPS:
+        return "Belum ada grup Facebook yang tersimpan."
+    lines = ["📂 <b>Grup Facebook Properti Anda</b>",
+             "<i>Buka, cari postingan \"dicari/butuh rumah...\", lalu forward ke sini.</i>\n"]
+    for name, gid in config.FB_GROUPS.items():
+        lines.append(f"• <a href='https://www.facebook.com/groups/{gid}'>{esc(name)}</a>")
+    return "\n".join(lines)
+
+
+HELP_TEXT = _build_help_text()
 
 
 def _match_summary_line(m: dict, i: int) -> str:
@@ -72,6 +89,9 @@ def _handle_command(text: str) -> str:
 
     if cmd in ("start", "help"):
         return HELP_TEXT
+
+    if cmd in ("grup", "group", "grupfb"):
+        return _build_groups_text()
 
     if cmd == "stats":
         s = store.stats()

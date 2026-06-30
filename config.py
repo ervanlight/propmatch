@@ -38,10 +38,16 @@ ENABLED_SCRAPERS = [
 # Jumlah maksimum item mentah yang diambil per scraper per run.
 SCRAPER_LIMIT = int(os.getenv("SCRAPER_LIMIT", "25"))
 
-# Facebook (sumber PEMBELI terkaya). Scraping butuh sesi login Harvey sendiri:
-# isi cookie & ID grup yang dia ikuti. Tanpa ini, scraper Facebook dilewati.
-FB_COOKIE = os.getenv("FB_COOKIE", "")
-FB_GROUP_IDS = [g.strip() for g in os.getenv("FB_GROUP_IDS", "").split(",") if g.strip()]
+# Facebook Group (sumber PEMBELI terkaya) — dengan SENGAJA tidak di-scrape
+# otomatis (lihat scraper/facebook_scraper.py untuk alasan privasi). Daftar ini
+# hanya dipakai untuk menampilkan link cepat ("buka grup ini") di pesan bantuan
+# bot, supaya Harvey gampang forward listing secara manual.
+FB_GROUPS = {
+    "Jual Beli Tanah Dan Property Surabaya Sidoarjo": "2996788917028288",
+    "JUAL BELI RUMAH & TANAH WILAYAH SIDOARJO SURABAYA": "590137418706932",
+    "Rumah Murah Surabaya": "947230525862360",
+    "Property Surabaya": "837418913018544",
+}
 
 # Threads (Meta): kata kunci pencarian publik untuk menangkap niat beli/jual.
 THREADS_KEYWORDS = [
