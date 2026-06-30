@@ -14,10 +14,14 @@ venv/
 local_db_*.json
 dashboard_output.html
 
-# File sementara SQLite (write-ahead log) -- tidak perlu ikut commit
+# Database asli (berisi kontak pribadi penjual/pembeli hasil scraping) --
+# TIDAK boleh ikut git, sumber data utama sekarang Turso (DB remote).
+data/propmatch.db
 data/propmatch.db-wal
 data/propmatch.db-shm
 
 # OS
 .DS_Store
 Thumbs.db
+
+.vercel

@@ -39,9 +39,12 @@ USE_MOCK_DATA = os.getenv("USE_MOCK_DATA", "0") == "1"
 # Sumber data scraper (multi-sumber, pluggable)
 # ---------------------------------------------------------------------------
 # Daftar scraper yang diaktifkan, dipisah koma. Pilihan: olx, threads, facebook.
+# Default difokuskan ke Threads saja: OLX hanya berisi listing JUAL (penjual),
+# tidak pernah menghasilkan data PEMBELI yang justru jadi prioritas sistem ini.
+# Ubah lewat env ENABLED_SCRAPERS kalau mau mengaktifkan ulang olx/facebook.
 ENABLED_SCRAPERS = [
     s.strip().lower()
-    for s in os.getenv("ENABLED_SCRAPERS", "olx,threads,facebook").split(",")
+    for s in os.getenv("ENABLED_SCRAPERS", "threads").split(",")
     if s.strip()
 ]
 

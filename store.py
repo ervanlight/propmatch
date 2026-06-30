@@ -131,10 +131,15 @@ def _guess_source(source_name: str) -> str:
 
 
 def get_active(status: str) -> list:
+    """Listing aktif (belum dihapus). 'closed' (deal selesai) dikecualikan secara
+    default supaya tidak terus muncul sebagai kandidat match baru -- 'lost' tetap
+    ikut, karena lead yang gagal sekali boleh dicocokkan ulang ke depannya."""
     table = _table_for_status(status)
     conn = db.get_connection()
     try:
-        rows = conn.execute(f"SELECT * FROM {table} WHERE deleted_at IS NULL").fetchall()
+        rows = conn.execute(
+            f"SELECT * FROM {table} WHERE deleted_at IS NULL AND lead_status != 'closed'"
+        ).fetchall()
         return [_row_to_dict(r) for r in rows]
     finally:
         conn.close()
@@ -193,7 +198,10 @@ def get_stale_contacted(days: int = 3) -> list:
             rows = conn.execute(
                 f"SELECT * FROM {table} WHERE lead_status = 'contacted' AND updated_at < ? "
                 "AND deleted_at IS NULL", (cutoff,)).fetchall()
-            out.extend(_row_to_dict(r) for r in rows)
+            for r in rows:
+                d = _row_to_dict(r)
+                d["peran"] = "JUAL" if table == "sellers" else "CARI"
+                out.append(d)
         return out
     finally:
         conn.close()

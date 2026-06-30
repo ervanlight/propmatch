@@ -21,6 +21,7 @@ def generate_dashboard(output_path: str = None) -> str:
         "pencari": store.get_pencari(),
         "match": store.get_matches(),
         "meta": store.get_meta(),
+        "stale_contacted": store.get_stale_contacted(days=3),
     }
 
     with open(config.DASHBOARD_TEMPLATE, "r", encoding="utf-8") as f:

@@ -3,6 +3,7 @@
   "builds": [
     { "src": "api/telegram.py", "use": "@vercel/python" },
     { "src": "api/submit-lead.py", "use": "@vercel/python" },
+    { "src": "api/dashboard.py", "use": "@vercel/python" },
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "landing.html", "use": "@vercel/static" }
   ],
@@ -12,6 +13,7 @@
     { "src": "/cari", "dest": "landing.html" },
     { "src": "/jual", "dest": "landing.html" },
     { "src": "/landing", "dest": "landing.html" },
-    { "src": "/", "dest": "index.html" }
+    { "src": "/index.html", "dest": "api/dashboard.py" },
+    { "src": "/", "dest": "api/dashboard.py" }
   ]
 }
