@@ -41,8 +41,12 @@ ENABLED_SCRAPERS = [
     if s.strip()
 ]
 
-# Jumlah maksimum item mentah yang diambil per scraper per run.
-SCRAPER_LIMIT = int(os.getenv("SCRAPER_LIMIT", "25"))
+# Jumlah maksimum item mentah yang diambil per scraper per run. Sebelumnya
+# dibatasi 25 untuk menghemat kuota gratis Gemini; sekarang dengan Claude
+# Haiku 4.5 (~$0.0016/klasifikasi) batasan itu tidak relevan lagi -> dinaikkan
+# ke 100 untuk coverage lebih luas. 100 listing/sumber/hari x $0.0016 masih
+# di bawah $0.50/hari.
+SCRAPER_LIMIT = int(os.getenv("SCRAPER_LIMIT", "100"))
 
 # Facebook Group (sumber PEMBELI terkaya) — dengan SENGAJA tidak di-scrape
 # otomatis (lihat scraper/facebook_scraper.py untuk alasan privasi). Daftar ini
