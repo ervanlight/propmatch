@@ -12,7 +12,7 @@ alasan yang enak dibaca pada beberapa match teratas.
 import logging
 
 import config
-from models import normalize_lokasi, normalize_tipe
+from models import location_clusters, normalize_lokasi, normalize_tipe
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +28,7 @@ def _location_score(lok_jual: str, lok_cari: str) -> float:
     if a == b or a in b or b in a:
         return 1.0
 
-    # Cari token wilayah yang muncul di klaster yang sama.
-    def clusters_of(text):
-        found = set()
-        for i, cluster in enumerate(config.LOCATION_CLUSTERS):
-            for kec in cluster:
-                if kec in text:
-                    found.add(i)
-        return found
-
-    ca, cb = clusters_of(a), clusters_of(b)
+    ca, cb = location_clusters(a), location_clusters(b)
     if ca and cb:
         if ca & cb:
             return 0.8   # berbagi klaster (satu zona)
@@ -183,3 +174,54 @@ def find_matches(daftar_jual: list, daftar_cari: list, threshold: int = None,
 
     results.sort(key=lambda x: x["combined_score"], reverse=True)
     return results[:top_n]
+
+
+PRICE_ARBITRAGE_THRESHOLD = 0.15   # minimal 15% di bawah rata-rata ZONA-nya
+PRICE_ARBITRAGE_MIN_SAMPLE = 3     # per grup (tipe+zona), biar rata-ratanya bermakna
+
+
+def compute_price_arbitrage(daftar_jual: list) -> list:
+    """
+    Cari penjual yang harganya jauh di bawah rata-rata -- tapi dibandingkan
+    HANYA dengan penjual lain di ZONA WILAYAH yang sama (pakai klaster lokasi
+    yang sama dengan matching, lihat models.location_clusters), bukan rata-
+    rata seluruh kota. Rumah di Surabaya pusat vs pinggiran Sidoarjo beda
+    kelas harga jauh walau sama-sama "rumah" -- dibandingkan mentah-mentah
+    bikin rata-rata tidak bermakna (semua listing kelihatan "jauh di bawah
+    rata-rata" padahal cuma beda zona).
+
+    Listing yang lokasinya tidak dikenali klaster manapun dikelompokkan per
+    teks lokasi persis (fallback lebih sempit, bukan digabung ke grup lain).
+    """
+    groups = {}
+    for jual in daftar_jual:
+        harga = jual.get("harga")
+        if not harga or harga <= 0:
+            continue
+        tipe = normalize_tipe(jual.get("tipe_properti"))
+        lokasi = normalize_lokasi(jual.get("lokasi"))
+        clusters = location_clusters(lokasi)
+        zone = min(clusters) if clusters else ("raw", lokasi)
+        groups.setdefault((tipe, zone), []).append(jual)
+
+    flagged = []
+    for group in groups.values():
+        if len(group) < PRICE_ARBITRAGE_MIN_SAMPLE:
+            continue
+        avg = sum(x["harga"] for x in group) / len(group)
+        for jual in group:
+            pct = (avg - jual["harga"]) / avg
+            if pct >= PRICE_ARBITRAGE_THRESHOLD:
+                flagged.append({
+                    "id": jual.get("id"),
+                    "tipe_properti": jual.get("tipe_properti"),
+                    "lokasi_display": jual.get("lokasi_display") or jual.get("lokasi"),
+                    "harga": jual["harga"],
+                    "kontak": jual.get("kontak"),
+                    "avg_price": round(avg),
+                    "pct_below": round(pct, 3),
+                    "sample_size": len(group),
+                })
+
+    flagged.sort(key=lambda x: x["pct_below"], reverse=True)
+    return flagged

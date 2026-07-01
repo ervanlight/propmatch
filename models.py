@@ -9,6 +9,8 @@ import re
 import hashlib
 import datetime
 
+import config
+
 
 VALID_STATUS = {"JUAL", "CARI", "TIDAK_RELEVAN"}
 VALID_TIPE = {"rumah", "ruko", "kos", "tanah", "apartemen", "gudang", "villa", "lainnya"}
@@ -58,6 +60,21 @@ def normalize_lokasi(value) -> str:
     if not value:
         return ""
     return str(value).strip().lower()
+
+
+def location_clusters(text: str) -> set:
+    """Klaster wilayah (index ke config.LOCATION_CLUSTERS) yang cocok dengan
+    teks lokasi (SUDAH dinormalisasi). Dipakai untuk kedekatan lokasi
+    matching (matcher/engine.py) SEKALIGUS untuk mengelompokkan listing per
+    zona harga yang wajar dibandingkan (matcher/engine.py
+    compute_price_arbitrage) -- rumah di Surabaya pusat dan rumah di
+    pinggiran Sidoarjo tidak sebanding harganya walau sama-sama "rumah"."""
+    found = set()
+    for i, cluster in enumerate(config.LOCATION_CLUSTERS):
+        for kec in cluster:
+            if kec in text:
+                found.add(i)
+    return found
 
 
 def normalize_phone(raw: str) -> str:

@@ -14,17 +14,20 @@ import logging
 
 import config
 import store
+from matcher.engine import compute_price_arbitrage
 
 logger = logging.getLogger(__name__)
 
 
 def build_dashboard_html() -> str:
+    penjual = store.get_penjual()
     payload = {
-        "penjual": store.get_penjual(),
+        "penjual": penjual,
         "pencari": store.get_pencari(),
         "match": store.get_matches(),
         "meta": store.get_meta(),
         "stale_contacted": store.get_stale_contacted(days=3),
+        "price_arbitrage": compute_price_arbitrage(penjual),
     }
 
     with open(config.DASHBOARD_TEMPLATE, "r", encoding="utf-8") as f:
