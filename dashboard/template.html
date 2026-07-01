@@ -30,8 +30,12 @@
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">🏠 PropMatch</h1>
         <p class="text-gray-500 dark:text-gray-400 mt-1 text-sm">Otomasi Prospek Properti — Sidoarjo &amp; Surabaya</p>
       </div>
-      <div class="flex items-center gap-3">
-        <span id="last-update" class="text-xs text-gray-400"></span>
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="last-update" class="text-xs text-gray-400 mr-1"></span>
+        <button id="btn-scrape" onclick="runScrape()" class="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold">🌐 Jalankan Scraping</button>
+        <button id="btn-match" onclick="runMatch()" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">🎯 Match Ulang</button>
+        <button id="btn-paste" onclick="openPasteModal()" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">📋 Paste &amp; Parse</button>
+        <button onclick="location.reload()" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-800">🔃</button>
         <button id="theme-toggle" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-800">🌙</button>
       </div>
     </header>
@@ -113,6 +117,13 @@
 
     <!-- Top Match -->
     <div id="content-topmatch" class="tab-content active">
+      <div class="flex gap-2 mb-4 overflow-x-auto" id="match-status-tabs">
+        <button data-mstatus="potential" onclick="setMatchStatusFilter('potential')" class="mstatus-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-600 text-white">🎯 Potensial</button>
+        <button data-mstatus="followup" onclick="setMatchStatusFilter('followup')" class="mstatus-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">📞 Sedang Saya Follow-up</button>
+        <button data-mstatus="closed" onclick="setMatchStatusFilter('closed')" class="mstatus-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">✅ Closed</button>
+        <button data-mstatus="lost" onclick="setMatchStatusFilter('lost')" class="mstatus-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">❌ Lost</button>
+        <button data-mstatus="" onclick="setMatchStatusFilter('')" class="mstatus-btn whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">Semua</button>
+      </div>
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="match-container"></div>
     </div>
 
@@ -194,11 +205,24 @@
     </div>
 
     <footer class="mt-10 text-center text-xs text-gray-400">
-      PropMatch · Sistem internal Harvey AI · Data diperbarui otomatis setiap pagi
+      PropMatch · Sistem internal Harvey AI · Live dari Turso, data ter-update tiap dibuka
     </footer>
   </div>
 
-  <div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50"></div>
+  <div id="toast" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-lg shadow-lg z-50 max-w-md text-center"></div>
+
+  <!-- Modal Paste & Parse -->
+  <div id="paste-modal" class="hidden fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-5">
+      <h3 class="font-semibold mb-2">📋 Paste & Parse</h3>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Tempel teks postingan dari WA/FB/IG/Threads. AI akan membaca, menyimpan sebagai penjual/pencari, lalu langsung mencari kemungkinan match.</p>
+      <textarea id="paste-text" rows="6" class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Contoh: Dicari rumah daerah Rungkut budget 700jt, siap KPR..."></textarea>
+      <div class="flex justify-end gap-2 mt-3">
+        <button onclick="closePasteModal()" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm">Batal</button>
+        <button id="btn-paste-submit" onclick="submitPaste()" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold">Proses dengan AI</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // Data disuntikkan oleh generator.py (jangan ubah baris penanda berikut)
@@ -238,6 +262,96 @@
       }
     }
 
+    // Browser sudah menyimpan kredensial Basic Auth dashboard ini, jadi
+    // fetch() ke /api/* (origin yang sama) otomatis ikut terautentikasi.
+    function apiPost(url, body){
+      return fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body || {}),
+      }).then(function(r){ return r.json().then(function(data){ return {ok: r.ok, data: data}; }); });
+    }
+
+    function setBusy(btnId, busyLabel){
+      var btn = document.getElementById(btnId);
+      if(!btn) return function(){};
+      var original = btn.innerHTML;
+      btn.disabled = true;
+      btn.classList.add('opacity-60','cursor-not-allowed');
+      btn.innerHTML = busyLabel;
+      return function(){
+        btn.disabled = false;
+        btn.classList.remove('opacity-60','cursor-not-allowed');
+        btn.innerHTML = original;
+      };
+    }
+
+    function runScrape(){
+      var restore = setBusy('btn-scrape', '⏳ Memicu...');
+      apiPost('/api/trigger-scrape', {}).then(function(res){
+        restore();
+        if(res.data.ok) toast(res.data.message || 'Scraping dimulai.');
+        else toast('Gagal: ' + (res.data.error || 'unknown'));
+      }).catch(function(e){ restore(); toast('Gagal: ' + e); });
+    }
+
+    function runMatch(){
+      var restore = setBusy('btn-match', '⏳ Mencocokkan...');
+      apiPost('/api/match-run', {}).then(function(res){
+        restore();
+        if(res.data.ok){
+          toast('Match ulang selesai: ' + res.data.baru + ' baru, ' + res.data.disegarkan + ' disegarkan.');
+          setTimeout(()=>location.reload(), 1200);
+        } else toast('Gagal: ' + (res.data.error || 'unknown'));
+      }).catch(function(e){ restore(); toast('Gagal: ' + e); });
+    }
+
+    function openPasteModal(){ document.getElementById('paste-modal').classList.remove('hidden'); }
+    function closePasteModal(){ document.getElementById('paste-modal').classList.add('hidden'); document.getElementById('paste-text').value=''; }
+
+    function submitPaste(){
+      var text = document.getElementById('paste-text').value.trim();
+      if(!text){ toast('Teks kosong.'); return; }
+      var restore = setBusy('btn-paste-submit', '⏳ Memproses...');
+      apiPost('/api/parse-text', {text: text}).then(function(res){
+        restore();
+        if(!res.data.ok){ toast('Gagal: ' + (res.data.error||'unknown')); return; }
+        if(!res.data.relevan){ toast(res.data.message || 'Bukan info jual/cari properti.'); return; }
+        toast('✅ Tersimpan sebagai ' + res.data.data.status + ', ' + res.data.match_ditemukan + ' kemungkinan match ditemukan.');
+        closePasteModal();
+        setTimeout(()=>location.reload(), 1200);
+      }).catch(function(e){ restore(); toast('Gagal: ' + e); });
+    }
+
+    function setLeadStatus(id, status){
+      apiPost('/api/update-status', {kind: 'lead', id: id, status: status}).then(function(res){
+        if(res.data.ok){ toast('Status diubah jadi ' + status + '.'); setTimeout(()=>location.reload(), 800); }
+        else toast('Gagal update status.');
+      });
+    }
+
+    function setMatchStatus(sellerId, buyerId, status){
+      apiPost('/api/update-status', {kind: 'match', seller_id: sellerId, buyer_id: buyerId, status: status}).then(function(res){
+        if(res.data.ok){ toast('Match ditandai ' + status + '.'); setTimeout(()=>location.reload(), 800); }
+        else toast('Gagal update status match.');
+      });
+    }
+
+    var matchStatusFilter = 'potential';
+    function setMatchStatusFilter(v){
+      matchStatusFilter = v;
+      document.querySelectorAll('.mstatus-btn').forEach(function(b){
+        var active = b.getAttribute('data-mstatus') === v;
+        b.classList.toggle('bg-blue-600', active);
+        b.classList.toggle('text-white', active);
+        b.classList.toggle('bg-gray-200', !active);
+        b.classList.toggle('dark:bg-gray-700', !active);
+        b.classList.toggle('text-gray-600', !active);
+        b.classList.toggle('dark:text-gray-300', !active);
+      });
+      render();
+    }
+
     function badgeKualitas(k){
       k = (k||'').toUpperCase();
       var cls = {HOT:'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
@@ -248,10 +362,11 @@
       return '<span class="px-2 py-0.5 rounded-full text-xs font-semibold '+cls+'">'+icon+' '+esc(k||'-')+'</span>';
     }
 
-    var STATUS_LABEL = {new:'Baru', contacted:'Dihubungi', negotiating:'Negosiasi', closed:'Closed', lost:'Gagal'};
+    var STATUS_LABEL = {new:'Baru', potential:'Potensial', contacted:'Dihubungi', negotiating:'Negosiasi', closed:'Closed', lost:'Gagal'};
     function badgeStatus(s){
       s = (s||'new').toLowerCase();
       var cls = {new:'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+                 potential:'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
                  contacted:'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
                  negotiating:'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
                  closed:'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
@@ -268,13 +383,21 @@
       return '<a href="https://wa.me/'+num+'" target="_blank" class="text-xs text-green-600 hover:underline whitespace-nowrap">📱 WA</a>';
     }
 
-    // Tombol salin perintah /status <id> <status> -- update status sebenarnya
-    // terjadi via bot Telegram (database tidak ditulis langsung dari dashboard
-    // statis ini), tombol ini mempercepat: klik -> tempel ke chat bot.
+    // Tombol status lead -- klik langsung tulis ke database lewat /api/update-status.
     function statusActions(id){
       var opts = [['contacted','📞 Dihubungi'],['negotiating','🤝 Nego'],['closed','✅ Closed'],['lost','❌ Lost']];
       return '<div class="flex flex-wrap gap-1">' + opts.map(function(o){
-        return '<button onclick="copyText(\'/status '+id+' '+o[0]+'\', \'Perintah disalin — tempel ke bot Telegram\')" '
+        return '<button onclick="setLeadStatus(\''+id+'\',\''+o[0]+'\')" '
+          + 'class="text-[10px] px-1.5 py-1 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">'+o[1]+'</button>';
+      }).join('') + '</div>';
+    }
+
+    // Tombol status SATU PASANGAN match -- begitu ditandai (selain 'potential'),
+    // mesin matching tidak akan mengutak-atik skor/alasan pasangan ini lagi.
+    function matchStatusActions(sellerId, buyerId){
+      var opts = [['contacted','📞 Dihubungi'],['negotiating','🤝 Nego'],['closed','✅ Closed'],['lost','❌ Lost']];
+      return '<div class="flex flex-wrap gap-1">' + opts.map(function(o){
+        return '<button onclick="setMatchStatus(\''+sellerId+'\',\''+buyerId+'\',\''+o[0]+'\')" '
           + 'class="text-[10px] px-1.5 py-1 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">'+o[1]+'</button>';
       }).join('') + '</div>';
     }
@@ -315,7 +438,8 @@
       var r = m.rincian || {};
       return '<div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-t-4 border-blue-500 dark:border-blue-400 overflow-hidden relative">'
         + '<div class="absolute top-0 right-0 '+skorCls+' text-white font-bold text-sm px-3 py-1 rounded-bl-lg">'+skor+'/10</div>'
-        + '<div class="p-4">'
+        + '<div class="absolute top-0 left-0">'+badgeStatus(m.status)+'</div>'
+        + '<div class="p-4 pt-7">'
         +   '<div class="mb-2 flex items-start justify-between gap-2"><div><div class="text-xs text-gray-400 uppercase">Penjual '+idChip(m.penjual_id)+'</div>'
         +     '<div class="font-semibold capitalize text-gray-900 dark:text-white">'+esc(m.penjual_tipe||'-')+' · '+esc(m.penjual_lokasi||'-')+'</div>'
         +     '<div class="text-blue-600 font-bold">'+fmtRupiah(m.penjual_harga)+'</div></div></div>'
@@ -334,8 +458,9 @@
         +     (m.penjual_kontak?waLink(m.penjual_kontak):'')
         +     (m.pencari_kontak?waLink(m.pencari_kontak):'')
         +   '</div>'
-        +   '<div class="flex items-center justify-between text-[10px] text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-2">'
-        +     '<span>Tandai hasil follow-up:</span>'+statusActions(m.penjual_id)
+        +   '<div class="text-[10px] text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-2">'
+        +     '<span>Tandai hasil follow-up pasangan ini:</span>'
+        +     '<div class="mt-1">'+matchStatusActions(m.penjual_id, m.pencari_id)+'</div>'
         +   '</div>'
         + '</div></div>';
     }
@@ -352,6 +477,10 @@
         if(!isMatch){
           if(tipe && (it.tipe_properti||'')!==tipe) return false;
           if(status && (it.lead_status||'new')!==status) return false;
+        } else {
+          var mst = it.status || 'potential';
+          if(matchStatusFilter === 'followup'){ if(mst!=='contacted' && mst!=='negotiating') return false; }
+          else if(matchStatusFilter){ if(mst !== matchStatusFilter) return false; }
         }
         return true;
       });
@@ -419,7 +548,7 @@
       document.getElementById('stat-match').textContent = matches.length;
       var hot = penjual.concat(pencari).filter(x=>(x.kualitas_lead||'').toUpperCase()==='HOT').length;
       document.getElementById('stat-hot').textContent = hot;
-      var closed = penjual.concat(pencari).filter(x=>(x.lead_status||'')==='closed').length;
+      var closed = matches.filter(x=>(x.status||'')==='closed').length;
       document.getElementById('stat-closed').textContent = closed;
       document.getElementById('stat-stale').textContent = stale.length;
       if(s.last_run) document.getElementById('last-update').textContent = '🕒 Update: '+s.last_run.replace('T',' ');

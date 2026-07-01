@@ -87,8 +87,9 @@ def run():
         top_matches = engine.find_matches(store.get_penjual(), store.get_pencari())
         if top_matches:
             ClaudeMatcher().enrich_reasons(top_matches, limit=5)
-        store.save_matches(top_matches)
-        logger.info("Matching selesai: %d pasangan di atas threshold.", len(top_matches))
+        match_result = store.save_matches(top_matches)
+        logger.info("Matching selesai: %d pasangan di atas threshold (baru: %d, disegarkan: %d).",
+                   len(top_matches), match_result["new"], match_result["refreshed"])
     except Exception as e:
         logger.error("Matching gagal: %s", e)
 

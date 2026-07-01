@@ -135,7 +135,7 @@ def _auto_reason(jual: dict, cari: dict, breakdown: dict) -> str:
 
 
 def find_matches(daftar_jual: list, daftar_cari: list, threshold: int = None,
-                 top_n: int = 30) -> list:
+                 top_n: int = 300) -> list:
     """
     Hasilkan daftar pasangan match di atas threshold, terurut dari skor tertinggi.
     Tiap match memuat ringkasan penjual & pencari supaya dashboard/Telegram bisa

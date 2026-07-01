@@ -1,20 +1,26 @@
 """
-Lapisan koneksi & skema SQLite untuk PropMatch.
+Lapisan koneksi & skema database -- Turso (libSQL remote).
 
-Menggantikan data/*.json. Database tunggal di data/propmatch.db, dipakai
-bersama oleh bot.py (polling, proses panjang) dan main.py (cron harian) --
-keduanya berjalan bergantian, bukan benar-benar bersamaan, jadi mode WAL
-SQLite standar sudah cukup aman tanpa perlu infrastruktur locking tambahan.
+Kenapa pindah dari file SQLite lokal ke Turso: dashboard live (Vercel) dan
+GitHub Actions (eksekusi scraping) perlu menulis & membaca database YANG SAMA
+dari internet, sedangkan file SQLite lokal tidak bisa diakses dari luar
+laptop. Turso = SQLite yang di-hosting, dialek SQL nyaris identik sehingga
+seluruh query yang sudah ada (store.py) tetap jalan tanpa banyak perubahan.
+
+Satu-satunya sumber kebenaran sekarang: Turso. bot.py, main.py (lokal/GitHub
+Actions), dan semua serverless function di api/ membaca & menulis ke sini.
 """
 import os
-import sqlite3
 import logging
+
+import libsql_client
 
 import config
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.path.join(config.DATA_DIR, "propmatch.db")
+TURSO_DATABASE_URL = os.getenv("TURSO_DATABASE_URL")
+TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
 
 # Kolom inti yang sama untuk sellers & buyers (selain 'harga' yang berarti
 # "harga jual" di sellers dan "budget" di buyers -- nama kolom disamakan
@@ -44,77 +50,85 @@ _LISTING_COLUMNS = """
     last_confirmed_at TEXT
 """
 
-SCHEMA = f"""
-CREATE TABLE IF NOT EXISTS sellers ({_LISTING_COLUMNS});
-CREATE TABLE IF NOT EXISTS buyers ({_LISTING_COLUMNS});
-
-CREATE TABLE IF NOT EXISTS matches (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    seller_id TEXT,
-    buyer_id TEXT,
-    skor INTEGER,
-    skor_10 REAL,
-    urgency_score INTEGER DEFAULT 0,
-    combined_score REAL,
-    rincian TEXT,
-    alasan TEXT,
-    alasan_ai TEXT,
-    penjual_lokasi TEXT,
-    penjual_harga INTEGER,
-    penjual_tipe TEXT,
-    penjual_url TEXT,
-    penjual_kontak TEXT,
-    pencari_lokasi TEXT,
-    pencari_budget INTEGER,
-    pencari_url TEXT,
-    pencari_kontak TEXT,
-    created_at TEXT
-);
-
-CREATE TABLE IF NOT EXISTS meta (
-    key TEXT PRIMARY KEY,
-    value TEXT
-);
-
-CREATE TABLE IF NOT EXISTS seen_raw (
-    hash TEXT PRIMARY KEY,
-    created_at TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_sellers_deleted ON sellers(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_buyers_deleted ON buyers(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_sellers_lead_status ON sellers(lead_status);
-CREATE INDEX IF NOT EXISTS idx_buyers_lead_status ON buyers(lead_status);
-"""
+# Setiap statement terpisah (libsql tidak punya executescript multi-statement
+# seperti sqlite3 stdlib -- dieksekusi satu per satu lewat _ensure_schema).
+SCHEMA_STATEMENTS = [
+    f"CREATE TABLE IF NOT EXISTS sellers ({_LISTING_COLUMNS})",
+    f"CREATE TABLE IF NOT EXISTS buyers ({_LISTING_COLUMNS})",
+    """
+    CREATE TABLE IF NOT EXISTS matches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        seller_id TEXT,
+        buyer_id TEXT,
+        skor INTEGER,
+        skor_10 REAL,
+        urgency_score INTEGER DEFAULT 0,
+        combined_score REAL,
+        rincian TEXT,
+        alasan TEXT,
+        alasan_ai TEXT,
+        penjual_lokasi TEXT,
+        penjual_harga INTEGER,
+        penjual_tipe TEXT,
+        penjual_url TEXT,
+        penjual_kontak TEXT,
+        pencari_lokasi TEXT,
+        pencari_budget INTEGER,
+        pencari_url TEXT,
+        pencari_kontak TEXT,
+        -- Status pasangan match ITU SENDIRI (beda dari lead_status milik
+        -- penjual/pencari): 'potential' = masih dihitung ulang otomatis tiap
+        -- matching jalan, 'contacted'/'negotiating' = sedang Harvey follow-up
+        -- (dibekukan, tidak diutak-atik lagi oleh mesin matching), 'closed'/
+        -- 'lost' = sudah selesai (dibekukan permanen, jadi histori).
+        status TEXT CHECK(status IN ('potential','contacted','negotiating','closed','lost')) DEFAULT 'potential',
+        created_at TEXT,
+        updated_at TEXT,
+        UNIQUE(seller_id, buyer_id)
+    )
+    """,
+    "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
+    "CREATE TABLE IF NOT EXISTS seen_raw (hash TEXT PRIMARY KEY, created_at TEXT)",
+    "CREATE INDEX IF NOT EXISTS idx_sellers_deleted ON sellers(deleted_at)",
+    "CREATE INDEX IF NOT EXISTS idx_buyers_deleted ON buyers(deleted_at)",
+    "CREATE INDEX IF NOT EXISTS idx_sellers_lead_status ON sellers(lead_status)",
+    "CREATE INDEX IF NOT EXISTS idx_buyers_lead_status ON buyers(lead_status)",
+    "CREATE INDEX IF NOT EXISTS idx_matches_status ON matches(status)",
+]
 
 _initialized = False
 
 
-def get_connection() -> sqlite3.Connection:
-    """Buka koneksi baru dengan mode WAL (aman untuk akses bergantian dari
-    proses berbeda: bot.py, main.py, script migrasi)."""
-    os.makedirs(config.DATA_DIR, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    _ensure_schema(conn)
-    return conn
+def get_connection() -> libsql_client.ClientSync:
+    """Buka client Turso baru. Dipanggil sekali per request/run (bukan
+    long-lived) -- cocok untuk pola serverless maupun script pendek."""
+    if not TURSO_DATABASE_URL:
+        raise RuntimeError(
+            "TURSO_DATABASE_URL belum diset. Isi di .env (lokal) atau "
+            "environment variable Vercel/GitHub Actions Secrets."
+        )
+    client = libsql_client.create_client_sync(
+        url=TURSO_DATABASE_URL,
+        auth_token=TURSO_AUTH_TOKEN,
+    )
+    _ensure_schema(client)
+    return client
 
 
-def _ensure_schema(conn: sqlite3.Connection) -> None:
+def _ensure_schema(client: libsql_client.ClientSync) -> None:
     global _initialized
     if _initialized:
         return
-    conn.executescript(SCHEMA)
-    conn.commit()
+    for stmt in SCHEMA_STATEMENTS:
+        client.execute(stmt)
     _initialized = True
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     c = get_connection()
-    print("Database siap di:", DB_PATH)
-    for row in c.execute("SELECT name FROM sqlite_master WHERE type='table'"):
+    print("Terhubung ke Turso:", TURSO_DATABASE_URL)
+    res = c.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    for row in res.rows:
         print(" -", row["name"])
     c.close()

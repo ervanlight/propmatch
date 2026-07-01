@@ -50,6 +50,8 @@ def _build_help_text() -> str:
         "• /stats — ringkasan jumlah data\n"
         "• /status &lt;id&gt; &lt;status&gt; — update status lead "
         "(new/contacted/negotiating/closed/lost)\n"
+        "• /matchstatus &lt;id_penjual&gt; &lt;id_pencari&gt; &lt;status&gt; — tandai SATU "
+        "pasangan match (potential/contacted/negotiating/closed/lost)\n"
         "• /reminder — lead 'contacted' yang belum di-follow-up &gt;3 hari\n"
         "• /grup — link cepat ke grup Facebook properti Anda\n"
         "• /help — bantuan ini"
@@ -132,6 +134,9 @@ def _handle_command(text: str) -> str:
     if cmd == "status":
         return _handle_status_command(text)
 
+    if cmd == "matchstatus":
+        return _handle_matchstatus_command(text)
+
     if cmd == "reminder":
         return _handle_reminder_command()
 
@@ -161,6 +166,23 @@ def _handle_status_command(text: str) -> str:
     store.update_lead_status(listing_id, new_status)
     label = f"{item.get('tipe_properti', '-')} di {item.get('lokasi_display') or item.get('lokasi', '-')}"
     return f"✅ Status <b>{esc(label)}</b> diubah jadi <b>{esc(new_status)}</b>."
+
+
+def _handle_matchstatus_command(text: str) -> str:
+    parts = text.strip().split()
+    if len(parts) != 4:
+        return ("Format: <code>/matchstatus &lt;id_penjual&gt; &lt;id_pencari&gt; &lt;status&gt;</code>\n"
+                f"Status valid: {', '.join(store.VALID_MATCH_STATUS)}\n"
+                "Contoh: <code>/matchstatus c9af544f91cb346e 2baa768fbd573bfc contacted</code>")
+
+    seller_id, buyer_id, new_status = parts[1], parts[2], parts[3].lower()
+    if new_status not in store.VALID_MATCH_STATUS:
+        return f"Status tidak dikenal. Pilih salah satu: {', '.join(store.VALID_MATCH_STATUS)}"
+
+    ok = store.update_match_status(seller_id, buyer_id, new_status)
+    if not ok:
+        return "Pasangan match itu tidak ditemukan di database."
+    return f"✅ Match <code>{esc(seller_id)}</code> × <code>{esc(buyer_id)}</code> ditandai <b>{esc(new_status)}</b>."
 
 
 def _handle_reminder_command() -> str:
@@ -212,6 +234,7 @@ def _handle_listing(text: str) -> str:
 
     if matches:
         _get_ai_matcher().enrich_reasons(matches, limit=3)
+        store.save_matches(matches)
         reply += f"\n🎯 <b>Ketemu {len(matches)} kemungkinan match!</b>\n"
         for i, m in enumerate(matches[:3], 1):
             reply += _match_summary_line(m, i)
