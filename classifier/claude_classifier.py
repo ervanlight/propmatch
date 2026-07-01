@@ -34,6 +34,7 @@ ATURAN PENTING:
 2. "harga" WAJIB angka rupiah penuh (650 juta -> 650000000; 1,2 M -> 1200000000; 1.5 miliar -> 1500000000). JANGAN pernah keliru satuan (jangan tulis 650 untuk "650 juta"). Untuk status CARI, isi "harga" = BUDGET MAKSIMUM pencari (batas atas); kalau disebut rentang "500-700jt", ambil 700000000. Jika harga/budget tidak disebut, isi 0.
 3. "kualitas_lead" = HOT jika ada sinyal mendesak (BU, butuh cepat, harga di bawah pasar, sangat dicari); WARM jika normal & jelas; COLD jika info minim/ragu.
 4. "lokasi" = kecamatan/daerah spesifik + kota, contoh: "Waru, Sidoarjo". Kalau hanya kota tanpa kecamatan, tulis kotanya saja. Kalau tidak ada info lokasi, isi "".
+4b. "nama" = nama orang/kontak yang menjual atau mencari, HANYA jika disebut eksplisit di teks (mis. "hub Budi 08xxx", tanda tangan pesan). Kalau tidak ada nama yang jelas, isi "" -- JANGAN mengarang nama.
 5. "tipe_properti" = salah satu: Rumah, Ruko, Kos, Tanah, Apartemen, Gudang, Villa, Lainnya.
 6. "dalam_wilayah" = true HANYA jika properti berada di Surabaya, Sidoarjo, atau sekitarnya langsung (Gedangan, Waru, Taman, Krian, dst). false jika jelas di kota/wilayah lain (Jakarta, Malang, Bali, dll). Jika lokasi tidak diketahui, isi true (jangan buang lead karena ragu).
 7. "is_agen" = true jika postingan jelas dari agen/broker/developer yang menawarkan BANYAK unit atau menyebar iklan massal; false jika tampak dari pemilik langsung atau pencari perorangan.
@@ -45,6 +46,7 @@ OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
         "status": {"type": "string", "enum": ["JUAL", "CARI", "TIDAK_RELEVAN"]},
+        "nama": {"type": "string"},
         "lokasi": {"type": "string"},
         "harga": {"type": "integer"},
         "tipe_properti": {"type": "string"},

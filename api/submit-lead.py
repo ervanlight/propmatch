@@ -53,6 +53,7 @@ def _build_listing(kind: str, data: dict) -> dict:
         catatan = (f"Range budget: Rp{harga_min:,}–Rp{harga_max:,}. " + catatan).strip()
     return {
         "status": status,
+        "nama": data.get("nama", ""),
         "lokasi": data.get("lokasi", ""),
         "harga": harga,
         "tipe_properti": data.get("tipe_properti") or "Lainnya",
@@ -62,7 +63,7 @@ def _build_listing(kind: str, data: dict) -> dict:
         "urgensi": "Normal",
         "metode_bayar": "",
         "kualitas_lead": "WARM",
-        "catatan_ai": (f"Lead dari landing page ({data.get('nama', '-')}). " + catatan).strip(),
+        "catatan_ai": ("Lead dari landing page. " + catatan).strip(),
         "source_url": data.get("foto_url", ""),
         "source_name": "Landing Page",
         "raw_text": f"{data.get('nama', '')} | {data.get('lokasi', '')} | {catatan}",

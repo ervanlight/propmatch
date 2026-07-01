@@ -247,6 +247,7 @@ def normalize_listing(data: dict) -> dict:
 
     clean = {
         "status": status,
+        "nama": str(data.get("nama", "") or "").strip(),
         "lokasi": normalize_lokasi(data.get("lokasi")),
         "lokasi_display": (str(data.get("lokasi")).strip() if data.get("lokasi") else ""),
         "harga": parse_harga(data.get("harga")),

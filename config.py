@@ -16,6 +16,16 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
+# Google Sheets (arsip rapi & bisa dicek kapan saja di luar dashboard) -- lihat
+# integrations/google_sheets.py. ID diambil dari URL spreadsheet:
+# https://docs.google.com/spreadsheets/d/INI_ID_NYA/edit
+GOOGLE_SHEETS_ID = os.getenv("GOOGLE_SHEETS_ID", "")
+# Isi JSON penuh service account (satu baris) -- dipakai di Vercel/GitHub
+# Actions yang tidak bisa simpan file. ATAU pakai file lokal lewat baris di
+# bawah (untuk development di laptop).
+GOOGLE_SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+GOOGLE_SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_SERVICE_ACCOUNT_FILE", "")
+
 # Model AI (Claude, berbayar tapi sangat murah). Haiku 4.5 cukup untuk tugas
 # ekstraksi/klasifikasi sederhana ini -- ~3.000 klasifikasi per $5.
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5")

@@ -27,6 +27,7 @@ TURSO_AUTH_TOKEN = os.getenv("TURSO_AUTH_TOKEN")
 # supaya kode matcher/dashboard tidak perlu cabang logic per tabel).
 _LISTING_COLUMNS = """
     id TEXT PRIMARY KEY,
+    nama TEXT,
     lokasi TEXT,
     lokasi_display TEXT,
     harga INTEGER DEFAULT 0,
@@ -98,6 +99,11 @@ SCHEMA_STATEMENTS = [
     # statement ALTER TABLE ditangani idempotent lewat try/except di sana).
     "ALTER TABLE matches ADD COLUMN penjual_catatan TEXT",
     "ALTER TABLE matches ADD COLUMN pencari_catatan TEXT",
+    # Kolom "nama" ditambahkan belakangan (fitur ekspor Google Sheets) --
+    # tabel sellers/buyers yang sudah ada di Turso perlu migrasi manual ini
+    # (CREATE TABLE IF NOT EXISTS di atas tidak menyentuh tabel lama).
+    "ALTER TABLE sellers ADD COLUMN nama TEXT",
+    "ALTER TABLE buyers ADD COLUMN nama TEXT",
     "CREATE INDEX IF NOT EXISTS idx_sellers_deleted ON sellers(deleted_at)",
     "CREATE INDEX IF NOT EXISTS idx_buyers_deleted ON buyers(deleted_at)",
     "CREATE INDEX IF NOT EXISTS idx_sellers_lead_status ON sellers(lead_status)",

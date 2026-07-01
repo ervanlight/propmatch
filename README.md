@@ -20,6 +20,7 @@ jadi perantara/broker — bukan cuma daftar listing sepihak.
 | **Scraper** | `scraper/threads_scraper.py` | Threads (publik, kata kunci semua tipe properti). OLX & Facebook tersedia tapi nonaktif secara default (lihat `ENABLED_SCRAPERS`) |
 | **Database** | Turso (libSQL remote) — lihat `db.py` | Sumber kebenaran tunggal, dibaca/ditulis lokal, GitHub Actions, dan semua fungsi Vercel. Tabel `sellers`, `buyers`, `matches` |
 | **Landing page** | `landing.html` + `api/submit-lead.py` | Form publik "cari" / "jual" → langsung masuk Turso, instan, tanpa AI (data form sudah terstruktur) |
+| **Arsip Google Sheets** | `integrations/google_sheets.py` | Cerminan rapi seluruh data (Penjual, Pencari, Ringkasan) — bisa dibuka & dicek kapan saja tanpa login dashboard |
 
 ## 🔎 Scope: jual-beli saja (semua tipe properti)
 
@@ -161,6 +162,39 @@ tersembunyi (`website`) untuk menyaring bot spam dasar.
 
 ---
 
+## 📊 Arsip Google Sheets (cek data kapan saja, format familiar)
+
+Semua data yang pernah masuk (hasil scraping, forward Telegram, landing page)
+sudah **selalu tersimpan permanen di Turso** (tidak pernah hilang/tertimpa)
+dan bisa dicek kapan saja lewat dashboard. Sebagai tambahan yang lebih
+familiar & mudah dibagikan/difilter sendiri, sistem juga bisa menyalin
+seluruh data ke satu Google Sheet, dengan 3 tab:
+
+- **Penjual** — Nama, No HP, Jenis Properti, Lokasi, Harga Jual, LT/LB, KT/KM,
+  Metode Bayar, Urgensi, Kualitas Lead, Status Lead, Sumber, dst.
+- **Pencari** — Nama, No HP, Jenis Properti Dicari, Lokasi Diinginkan,
+  Budget Maksimal, dst.
+- **Ringkasan** — waktu sinkron terakhir & jumlah data saat ini.
+
+Setiap sinkronisasi **menimpa** isi tab dengan data terkini dari Turso
+(bukan menumpuk) — jadi Sheets selalu mencerminkan kondisi terbaru tanpa
+duplikat, dengan lead terbaru selalu di baris paling atas.
+
+**Setup sekali saja** (langkah lengkap ada di komentar `.env.example` bagian
+"Google Sheets"): buat 1 Google Sheet kosong, buat service account di Google
+Cloud Console, share Sheet itu ke email service account, lalu isi
+`GOOGLE_SHEETS_ID` + `GOOGLE_SERVICE_ACCOUNT_JSON` di `.env` (lokal) dan di
+Secrets GitHub Actions / Environment Variables Vercel.
+
+**Cara sinkron:**
+- **Otomatis** setiap kali `python main.py` (pipeline scraping) selesai jalan.
+- **Manual kapan saja** lewat tombol **📊 Sinkronkan Google Sheets** di dashboard.
+
+Kalau kredensial belum diisi, fitur ini dilewati diam-diam (tidak mengganggu
+scraping/matching) — murni tambahan, bukan bagian yang wajib.
+
+---
+
 ## 🌐 Deploy (Vercel + GitHub Actions)
 
 **Dashboard live (Vercel):**
@@ -168,14 +202,17 @@ tersembunyi (`website`) untuk menyaring bot spam dasar.
 2. Set environment variables di Vercel: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`,
    `DASHBOARD_USER`, `DASHBOARD_PASSWORD` (proteksi Basic Auth — dashboard berisi
    data kontak pribadi), `GITHUB_TOKEN` + `GITHUB_REPO` (supaya tombol "Jalankan
-   Scraping" bisa memicu GitHub Actions dari dashboard).
+   Scraping" bisa memicu GitHub Actions dari dashboard), dan opsional
+   `GOOGLE_SHEETS_ID` + `GOOGLE_SERVICE_ACCOUNT_JSON` (supaya tombol "Sinkronkan
+   Google Sheets" berfungsi — lihat bagian "Arsip Google Sheets" di atas).
 3. Dashboard otomatis live di URL Vercel Anda, render langsung dari Turso.
 
 **Scraping (GitHub Actions, manual only):**
 1. Push project ke GitHub.
 2. Di **Settings → Secrets and variables → Actions**, tambahkan:
    `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `DASHBOARD_URL`,
-   `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`.
+   `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, dan opsional `GOOGLE_SHEETS_ID` +
+   `GOOGLE_SERVICE_ACCOUNT_JSON` (supaya tiap scraping otomatis sinkron ke Sheets).
 3. Jalankan lewat tombol dashboard, atau tab **Actions → Run workflow**.
    Tidak ada jadwal otomatis — ini keputusan desain yang disengaja.
 

@@ -15,7 +15,7 @@ from models import (normalize_listing, normalize_phone, now_iso, now_wib,
 
 logger = logging.getLogger(__name__)
 
-_COLS = ["id", "lokasi", "lokasi_display", "harga", "tipe_properti", "lt_lb", "kt_km",
+_COLS = ["id", "nama", "lokasi", "lokasi_display", "harga", "tipe_properti", "lt_lb", "kt_km",
          "kontak", "urgensi", "metode_bayar", "kualitas_lead", "urgency_score",
          "catatan_ai", "source_url", "source_name", "source", "raw_text",
          "lead_status", "created_at", "updated_at", "deleted_at", "last_confirmed_at"]
@@ -168,7 +168,7 @@ def save_listing(raw: dict, source: str = None) -> str | None:
 
         if existing:
             updates = {"updated_at": now, "deleted_at": None, "last_confirmed_at": now}
-            for k in ("lokasi", "lokasi_display", "tipe_properti", "kontak", "urgensi",
+            for k in ("nama", "lokasi", "lokasi_display", "tipe_properti", "kontak", "urgensi",
                      "metode_bayar", "kualitas_lead", "catatan_ai", "source_url", "source_name"):
                 v = item.get(k)
                 if v and not existing.get(k):
@@ -186,12 +186,12 @@ def save_listing(raw: dict, source: str = None) -> str | None:
             return "updated"
 
         conn.execute(f"""
-            INSERT INTO {table} (id, lokasi, lokasi_display, harga, tipe_properti, lt_lb, kt_km,
+            INSERT INTO {table} (id, nama, lokasi, lokasi_display, harga, tipe_properti, lt_lb, kt_km,
                 kontak, urgensi, metode_bayar, kualitas_lead, urgency_score, catatan_ai,
                 source_url, source_name, source, raw_text, lead_status,
                 created_at, updated_at, deleted_at, last_confirmed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, NULL, ?)
-        """, (item["id"], item["lokasi"], item["lokasi_display"], item["harga"],
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, NULL, ?)
+        """, (item["id"], item["nama"], item["lokasi"], item["lokasi_display"], item["harga"],
               item["tipe_properti"], item["LT_LB"], item["KT_KM"], item["kontak"],
               item["urgensi"], item["metode_bayar"], item["kualitas_lead"], urgency,
               item["catatan_ai"], item["source_url"], item["source_name"], src,
