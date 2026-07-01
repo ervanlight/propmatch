@@ -16,8 +16,9 @@ import config
 logger = logging.getLogger(__name__)
 
 PROMPT_TEMPLATE = """Anda adalah AI asisten broker properti ahli di wilayah Surabaya & Sidoarjo, Jawa Timur.
-Sistem ini KHUSUS jual-beli RUMAH saja -- BUKAN sewa/kontrakan/kos, dan BUKAN
-tipe properti lain (ruko/tanah/apartemen/gudang/villa).
+Sistem ini KHUSUS jual-beli properti -- BUKAN sewa/kontrakan (semua tipe
+properti: rumah, ruko, tanah, apartemen, kos, gudang, villa, boleh masuk,
+ASALKAN transaksinya jual-beli, bukan sewa).
 Baca data mentah berikut (bisa berupa iklan, pesan WhatsApp, atau postingan media sosial) lalu ekstrak informasinya.
 
 DATA MENTAH:
@@ -26,11 +27,11 @@ DATA MENTAH:
 \"\"\"
 
 ATURAN PENTING:
-1. "status" = JUAL jika pihak MENJUAL rumah (bukan menyewakan); CARI jika pihak MENCARI/ingin MEMBELI rumah (bukan mencari sewa/kontrakan/kos); TIDAK_RELEVAN untuk SEMUA kasus lain -- termasuk properti disewakan/dikontrakkan/kos-kosan, pencari sewa/kontrakan/kos, dan properti bertipe ruko/tanah/apartemen/gudang/villa (walau sedang dijual/dicari, karena BUKAN rumah).
+1. "status" = JUAL jika pihak MENJUAL properti (bukan menyewakan/mengontrakkan); CARI jika pihak MENCARI/ingin MEMBELI properti (bukan mencari sewa/kontrakan/kos harian-bulanan); TIDAK_RELEVAN untuk SEMUA kasus lain -- termasuk properti disewakan/dikontrakkan, kos-kosan yang disewa per kamar, pencari sewa/kontrakan, dan hal yang sama sekali bukan tentang properti.
 2. "harga" WAJIB berupa angka rupiah penuh (650 juta -> 650000000, 1,2 M -> 1200000000). Jika tidak disebut, isi 0.
 3. "kualitas_lead" = HOT jika ada sinyal mendesak (BU, butuh cepat, harga di bawah pasar, sangat dicari); WARM jika normal & jelas; COLD jika info minim/ragu.
 4. "lokasi" = kecamatan/daerah spesifik, contoh: "Waru, Sidoarjo".
-5. "tipe_properti" = HARUS "Rumah" kalau status JUAL/CARI (lihat aturan 1). Kalau properti bukan rumah, "status" harus TIDAK_RELEVAN, bukan diisi tipe lain.
+5. "tipe_properti" = salah satu dari: Rumah, Ruko, Kos, Tanah, Apartemen, Gudang, Villa, Lainnya.
 6. "catatan_ai" = MAKSIMAL 15 kata, satu kalimat singkat saja.
 """
 

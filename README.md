@@ -1,7 +1,7 @@
 # PropMatch — AI Agent Properti Harvey
 
-Sistem otomatis yang mengumpulkan & memahami info properti (penjual dan pencari
-**rumah**, jual-beli saja — bukan sewa/kos) di Sidoarjo–Surabaya, mencocokkan
+Sistem otomatis yang mengumpulkan & memahami info properti (penjual dan pencari,
+**jual-beli saja — bukan sewa/kontrakan**) di Sidoarjo–Surabaya, mencocokkan
 keduanya dengan AI, lalu mengirim laporan ke Telegram dan menampilkannya di
 dashboard live. Nilai utamanya: setiap kartu match menampilkan penjual DAN
 pencari berdampingan (kontak, postingan, alasan cocok) supaya Anda tinggal
@@ -17,20 +17,21 @@ jadi perantara/broker — bukan cuma daftar listing sepihak.
 | **Pipeline scraping** | `main.py` | Scrape + klasifikasi + matching + laporan Telegram — manual (tombol dashboard atau `Run workflow` GitHub Actions), TIDAK terjadwal otomatis |
 | **Dashboard live** | `api/dashboard.py` + `dashboard/template.html` | Render langsung dari Turso tiap dibuka — data selalu terbaru tanpa redeploy. Filter, update status, Paste & Parse, Match Ulang manual |
 | **Otak AI** | `classifier/`, `matcher/` | Klasifikasi Claude Haiku 4.5 (ekstrak data terstruktur) + matching deterministik (skor 0-100) + alasan ditulis ulang AI |
-| **Scraper** | `scraper/threads_scraper.py` | Threads (publik, kata kunci rumah saja). OLX & Facebook tersedia tapi nonaktif secara default (lihat `ENABLED_SCRAPERS`) |
+| **Scraper** | `scraper/threads_scraper.py` | Threads (publik, kata kunci semua tipe properti). OLX & Facebook tersedia tapi nonaktif secara default (lihat `ENABLED_SCRAPERS`) |
 | **Database** | Turso (libSQL remote) — lihat `db.py` | Sumber kebenaran tunggal, dibaca/ditulis lokal, GitHub Actions, dan semua fungsi Vercel. Tabel `sellers`, `buyers`, `matches` |
-| **Landing page** | `landing.html` + `api/submit-lead.py` | Form publik "cari" / "jual" rumah → masuk database via Google Sheets (opsional, butuh setup terpisah) |
+| **Landing page** | `landing.html` + `api/submit-lead.py` | Form publik "cari" / "jual" → langsung masuk Turso, instan, tanpa AI (data form sudah terstruktur) |
 
-## 🔎 Scope: jual-beli RUMAH saja
+## 🔎 Scope: jual-beli saja (semua tipe properti)
 
-Sistem ini **khusus rumah** (bukan ruko/tanah/kos/apartemen/gudang/villa) dan
-**khusus jual-beli** (bukan sewa/kontrakan). Ini ditegakkan dua lapis:
-1. Prompt classifier AI (`classifier/claude_classifier.py`) diinstruksikan menolak selain itu.
-2. Safety-net di kode (`models.normalize_listing`) — walau AI keliru, listing di luar scope dipaksa `TIDAK_RELEVAN` sebelum sempat masuk database.
+Sistem ini menerima **semua tipe properti** (rumah, ruko, tanah, apartemen,
+kos, gudang, villa), tapi **khusus jual-beli** — BUKAN sewa/kontrakan/kos
+per-bulan. Ini ditegakkan lewat prompt classifier AI
+(`classifier/claude_classifier.py`): status hanya JUAL/CARI untuk transaksi
+beli-jual; apapun yang berbau sewa/kontrakan otomatis `TIDAK_RELEVAN`.
 
 Nilai utama tetap di **sisi permintaan (pembeli)** — siapa yang sedang aktif
-mencari rumah, dengan budget & kriteria apa. Sisi penjual sudah melimpah di
-portal, sisi pembeli yang langka & berharga.
+mencari, dengan budget & kriteria apa. Sisi penjual sudah melimpah di portal,
+sisi pembeli yang langka & berharga.
 
 Atur sumber scraper aktif lewat `ENABLED_SCRAPERS=threads` (atau tambah
 `olx`) di `.env`. Facebook Group sengaja tidak diotomasi (lihat komentar di
@@ -126,25 +127,21 @@ koneksi baru dibuka — lihat `db.py`.
 
 ---
 
-## 📝 Landing Page (form publik "cari" / "jual") — opsional
+## 📝 Landing Page (form publik "cari" / "jual")
 
 `landing.html` adalah halaman terpisah dari dashboard — link untuk dibagikan
-ke calon klien. Karena Vercel serverless tidak punya penyimpanan file
-permanen, alurnya lewat Google Sheets sebagai kotak surat sementara:
+ke calon klien. `api/submit-lead.py` menulis LANGSUNG ke Turso (sama seperti
+`api/parse-text.py`/`api/dashboard.py`) — tidak ada layanan pihak ketiga di
+tengah, tidak ada delay menunggu pipeline jalan:
 
 ```
-landing.html → api/submit-lead.py → Google Sheets
-                                          ↓
-                       main.py (pipeline) menarik lead baru → Turso
+landing.html → api/submit-lead.py → Turso (langsung, instan)
 ```
 
-**Setup (sekali saja, opsional — sistem tetap jalan penuh tanpa ini):**
-1. Buat Google Sheet baru (boleh kosong, tab akan dibuat otomatis).
-2. Buat Service Account di [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts),
-   aktifkan Google Sheets API, download file JSON kredensialnya.
-3. Share Google Sheet tadi ke email service account (`client_email` di file JSON) dengan akses **Editor**.
-4. Isi `.env`: `GOOGLE_SHEET_URL`, lalu `GOOGLE_CREDENTIALS_FILE` (lokal) atau
-   `GOOGLE_CREDENTIALS_JSON` (Vercel — isi seluruh konten JSON sebagai satu baris).
+Tidak butuh setup tambahan apapun di luar env Turso yang sudah diisi di atas.
+Data form sudah terstruktur (bukan teks bebas) sehingga tidak perlu panggilan
+AI sama sekali — gratis sepenuhnya. Endpoint ini punya honeypot field
+tersembunyi (`website`) untuk menyaring bot spam dasar.
 
 ---
 
