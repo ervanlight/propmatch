@@ -8,6 +8,7 @@
     { "src": "api/parse-text.py", "use": "@vercel/python" },
     { "src": "api/update-status.py", "use": "@vercel/python" },
     { "src": "api/trigger-scrape.py", "use": "@vercel/python" },
+    { "src": "api/scrape-status.py", "use": "@vercel/python" },
     { "src": "landing.html", "use": "@vercel/static" }
   ],
   "routes": [
@@ -17,6 +18,7 @@
     { "src": "/api/parse-text", "dest": "api/parse-text.py" },
     { "src": "/api/update-status", "dest": "api/update-status.py" },
     { "src": "/api/trigger-scrape", "dest": "api/trigger-scrape.py" },
+    { "src": "/api/scrape-status", "dest": "api/scrape-status.py" },
     { "src": "/cari", "dest": "landing.html" },
     { "src": "/jual", "dest": "landing.html" },
     { "src": "/landing", "dest": "landing.html" },
