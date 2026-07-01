@@ -4,13 +4,10 @@ Webhook Telegram (serverless, untuk deploy ke Vercel).
 Ini alternatif "selalu-aktif tanpa server" dari bot.py. Telegram mengirim setiap
 pesan ke URL ini, fungsi memprosesnya, lalu membalas via API Telegram.
 
-Catatan penting tentang penyimpanan di Vercel:
-  - Filesystem serverless bersifat read-only (kecuali /tmp yang sementara).
-  - Maka webhook ini MEMBACA snapshot database terakhir (data/ yang di-commit
-    oleh GitHub Actions) untuk mencari match secara instan, tapi listing baru
-    yang dipaste TIDAK tersimpan permanen di mode ini.
-  - Untuk simpan-baca penuh & persisten, jalankan bot.py (mode polling) di
-    laptop/VPS, atau aktifkan Google Sheets sebagai database.
+Penyimpanan: langsung baca-tulis ke Turso (lihat store.py/db.py) -- sama
+seperti bot.py mode polling, listing baru TERSIMPAN PERMANEN di mode webhook
+ini juga. Tidak ada lagi keterbatasan filesystem serverless karena database
+satu-satunya adalah Turso (remote), bukan file lokal.
 
 Setelah deploy, daftarkan webhook sekali:
   https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<app>.vercel.app/api/telegram

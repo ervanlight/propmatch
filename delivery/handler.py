@@ -52,6 +52,7 @@ def _build_help_text() -> str:
         "(new/contacted/negotiating/closed/lost)\n"
         "• /matchstatus &lt;id_penjual&gt; &lt;id_pencari&gt; &lt;status&gt; — tandai SATU "
         "pasangan match (potential/contacted/negotiating/closed/lost)\n"
+        "• /hapus &lt;id&gt; — buang listing salah-klasifikasi/duplikat/spam\n"
         "• /reminder — lead 'contacted' yang belum di-follow-up &gt;3 hari\n"
         "• /grup — link cepat ke grup Facebook properti Anda\n"
         "• /help — bantuan ini"
@@ -142,6 +143,9 @@ def _handle_command(text: str) -> str:
     if cmd == "matchstatus":
         return _handle_matchstatus_command(text)
 
+    if cmd == "hapus":
+        return _handle_hapus_command(text)
+
     if cmd == "reminder":
         return _handle_reminder_command()
 
@@ -188,6 +192,25 @@ def _handle_matchstatus_command(text: str) -> str:
     if not ok:
         return "Pasangan match itu tidak ditemukan di database."
     return f"✅ Match <code>{esc(seller_id)}</code> × <code>{esc(buyer_id)}</code> ditandai <b>{esc(new_status)}</b>."
+
+
+def _handle_hapus_command(text: str) -> str:
+    parts = text.strip().split()
+    if len(parts) != 2:
+        return ("Format: <code>/hapus &lt;id&gt;</code>\n"
+                "Buang listing salah-klasifikasi/duplikat/spam dari database "
+                "(soft-delete, tidak muncul lagi di dashboard/matching).\n"
+                "(ID bisa dilihat di hasil /top, tertera di bawah lokasi)")
+
+    listing_id = parts[1]
+    item = store.get_by_id(listing_id)
+    if not item:
+        return f"ID <code>{esc(listing_id)}</code> tidak ditemukan."
+
+    status = "JUAL" if item.get("_table") == "sellers" else "CARI"
+    store.soft_delete(status, listing_id)
+    label = f"{item.get('tipe_properti', '-')} di {item.get('lokasi_display') or item.get('lokasi', '-')}"
+    return f"🗑️ <b>{esc(label)}</b> <code>#{esc(listing_id)}</code> sudah dibuang dari database."
 
 
 def _handle_reminder_command() -> str:

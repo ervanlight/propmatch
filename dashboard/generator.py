@@ -30,10 +30,15 @@ def build_dashboard_html() -> str:
     with open(config.DASHBOARD_TEMPLATE, "r", encoding="utf-8") as f:
         template = f.read()
 
-    return template.replace(
-        "/*__DATA__*/{}",
-        json.dumps(payload, ensure_ascii=False),
-    )
+    # json.dumps TIDAK escape "</script>" -- kalau ada raw_text/catatan_ai dari
+    # sumber luar (scraping/forward Telegram) yang kebetulan (atau sengaja)
+    # mengandung string itu, tag <script> di bawah bisa "ditutup" lebih awal
+    # dan menyuntikkan HTML/JS lain ke dashboard yang sudah login. Escape jadi
+    # "<\/script>" -- valid di JS string literal, tapi tidak lagi cocok
+    # dengan penutup tag HTML manapun.
+    data_json = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
+
+    return template.replace("/*__DATA__*/{}", data_json)
 
 
 def generate_dashboard(output_path: str = None) -> str:
