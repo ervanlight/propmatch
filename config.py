@@ -103,7 +103,6 @@ TARGET_REGIONS = [
 # Path penyimpanan data
 # ---------------------------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
 DASHBOARD_OUTPUT = os.path.join(BASE_DIR, "index.html")
 DASHBOARD_TEMPLATE = os.path.join(BASE_DIR, "dashboard", "template.html")
 

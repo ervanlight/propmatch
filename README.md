@@ -1,8 +1,11 @@
 # PropMatch — AI Agent Properti Harvey
 
-Sistem otomatis yang mengumpulkan & memahami info properti (penjual dan pencari)
-di Sidoarjo–Surabaya, mencocokkan keduanya dengan AI, lalu mengirim laporan ke
-Telegram dan menampilkannya di dashboard web.
+Sistem otomatis yang mengumpulkan & memahami info properti (penjual dan pencari
+**rumah**, jual-beli saja — bukan sewa/kos) di Sidoarjo–Surabaya, mencocokkan
+keduanya dengan AI, lalu mengirim laporan ke Telegram dan menampilkannya di
+dashboard live. Nilai utamanya: setiap kartu match menampilkan penjual DAN
+pencari berdampingan (kontak, postingan, alasan cocok) supaya Anda tinggal
+jadi perantara/broker — bukan cuma daftar listing sepihak.
 
 ---
 
@@ -10,44 +13,35 @@ Telegram dan menampilkannya di dashboard web.
 
 | Bagian | File | Fungsi |
 |---|---|---|
-| **Bot Telegram interaktif** | `bot.py` | Forward/paste info properti → AI klasifikasi → langsung dapat match |
-| **Pipeline harian** | `main.py` | Scrape + klasifikasi + matching + laporan pagi otomatis |
-| **Dashboard web** | `index.html` | Lihat semua penjual, pencari, & top match (bisa dibuka di HP) |
-| **Otak AI** | `classifier/`, `matcher/` | Mengubah teks mentah jadi data & menilai kecocokan |
-| **Scraper multi-sumber** | `scraper/` | OLX (penjual), Threads & Facebook (terutama PEMBELI) |
-| **Database** | `data/propmatch.db` (SQLite) | Tabel `sellers`, `buyers`, `matches` — anti-duplikat, status lead, urgensi |
-| **Landing page** | `landing.html` + `api/submit-lead.py` | Form publik "cari" / "jual" → masuk database via Google Sheets |
+| **Bot Telegram interaktif** | `bot.py`, `api/telegram.py` | Forward/paste info properti → AI klasifikasi → langsung dapat match |
+| **Pipeline scraping** | `main.py` | Scrape + klasifikasi + matching + laporan Telegram — manual (tombol dashboard atau `Run workflow` GitHub Actions), TIDAK terjadwal otomatis |
+| **Dashboard live** | `api/dashboard.py` + `dashboard/template.html` | Render langsung dari Turso tiap dibuka — data selalu terbaru tanpa redeploy. Filter, update status, Paste & Parse, Match Ulang manual |
+| **Otak AI** | `classifier/`, `matcher/` | Klasifikasi Claude Haiku 4.5 (ekstrak data terstruktur) + matching deterministik (skor 0-100) + alasan ditulis ulang AI |
+| **Scraper** | `scraper/threads_scraper.py` | Threads (publik, kata kunci rumah saja). OLX & Facebook tersedia tapi nonaktif secara default (lihat `ENABLED_SCRAPERS`) |
+| **Database** | Turso (libSQL remote) — lihat `db.py` | Sumber kebenaran tunggal, dibaca/ditulis lokal, GitHub Actions, dan semua fungsi Vercel. Tabel `sellers`, `buyers`, `matches` |
+| **Landing page** | `landing.html` + `api/submit-lead.py` | Form publik "cari" / "jual" rumah → masuk database via Google Sheets (opsional, butuh setup terpisah) |
 
-## 🔎 Sumber Data (fokus menangkap PEMBELI)
+## 🔎 Scope: jual-beli RUMAH saja
 
-Nilai utama sistem ini ada di **sisi permintaan (pembeli)** — siapa yang sedang
-aktif mencari, dengan budget & kriteria apa. Sisi penjual sudah melimpah di
+Sistem ini **khusus rumah** (bukan ruko/tanah/kos/apartemen/gudang/villa) dan
+**khusus jual-beli** (bukan sewa/kontrakan). Ini ditegakkan dua lapis:
+1. Prompt classifier AI (`classifier/claude_classifier.py`) diinstruksikan menolak selain itu.
+2. Safety-net di kode (`models.normalize_listing`) — walau AI keliru, listing di luar scope dipaksa `TIDAK_RELEVAN` sebelum sempat masuk database.
+
+Nilai utama tetap di **sisi permintaan (pembeli)** — siapa yang sedang aktif
+mencari rumah, dengan budget & kriteria apa. Sisi penjual sudah melimpah di
 portal, sisi pembeli yang langka & berharga.
 
-| Sumber | File | Menangkap | Kebutuhan |
-|---|---|---|---|
-| OLX | `scraper/olx_scraper.py` | Penjual (best-effort) | — |
-| Threads | `scraper/threads_scraper.py` | Pembeli/penjual via kata kunci publik | `THREADS_KEYWORDS` |
-| Facebook Group | `scraper/facebook_scraper.py` | **Pembeli** (postingan "dicari…") | `FB_COOKIE` + `FB_GROUP_IDS` |
-| Forward manual ke bot | `bot.py` | Semua (paling andal) | — |
-
-Atur sumber aktif lewat `ENABLED_SCRAPERS=olx,threads,facebook` di `.env`.
-
-**Setup Facebook (sumber pembeli terkaya):**
-1. Login ke `mbasic.facebook.com` di browser, buka DevTools → Network → salin
-   header `Cookie` dari salah satu request. Tempel ke `FB_COOKIE`.
-2. Isi `FB_GROUP_IDS` dengan ID grup jual-beli properti yang Anda ikuti
-   (angka di URL grup), dipisah koma.
-3. Scraper hanya mengambil postingan bersinyal niat-beli & relevan wilayah.
-> Cookie bersifat rahasia — sudah masuk `.gitignore`, simpan sebagai secret.
-> Pendekatan ini mengakses data yang memang sudah bisa Anda lihat sebagai anggota grup.
+Atur sumber scraper aktif lewat `ENABLED_SCRAPERS=threads` (atau tambah
+`olx`) di `.env`. Facebook Group sengaja tidak diotomasi (lihat komentar di
+`scraper/facebook_scraper.py`) — forward manual ke bot Telegram sebagai gantinya.
 
 ---
 
-## 🚀 Cara Pakai Sehari-hari (paling penting)
+## 🚀 Cara Pakai Sehari-hari
 
 ### 1. Forward info properti ke bot Telegram
-Lihat iklan/postingan jual atau cari properti di WA grup, Facebook, atau OLX?
+Lihat iklan/postingan jual atau cari rumah di WA grup, Facebook, atau OLX?
 **Cukup forward atau copy-paste teksnya ke bot Telegram Anda.** Bot akan:
 - membaca & merapikan datanya,
 - menyimpannya (otomatis tidak dobel),
@@ -57,139 +51,128 @@ Perintah bot:
 - Ketik teks listing → otomatis diproses, AI juga menghitung **skor urgensi**
   (0-100) dari kata kunci seperti "BU", "cash", "nego tipis" — lead mendesak
   otomatis naik ke atas di `/top`.
-- `/top` → 5 match terbaik (urutan: kecocokan + urgensi), lengkap tombol
-  **WA siap-klik** (draft pesan sudah terisi, tinggal review & kirim manual)
+- `/top` → 5 match terbaik (urutan: kecocokan + urgensi), lengkap link
+  postingan kedua pihak + tombol **WA siap-klik** (draft pesan sudah terisi,
+  tinggal review & kirim manual)
 - `/status <id> <status>` → update status lead langsung dari Telegram
   (`new` / `contacted` / `negotiating` / `closed` / `lost`)
+- `/matchstatus <id_penjual> <id_pencari> <status>` → tandai satu pasangan match
 - `/reminder` → lead "contacted" yang belum di-follow-up >3 hari
 - `/stats` → ringkasan jumlah data
 - `/help` → bantuan
 
-### 2. Terima laporan pagi otomatis
-Setiap pukul 06:00 WIB, sistem mengirim ringkasan harian ke Telegram:
-penjual & pencari baru, jumlah lead HOT, dan Top Match untuk langsung ditindaklanjuti.
+### 2. Buka dashboard live kapan saja
+Dashboard (lihat bagian Deploy) render langsung dari Turso setiap dibuka —
+tidak perlu tunggu redeploy. Dari sana Anda bisa:
+- Lihat kartu **Top Match**: penjual & pencari berdampingan (kontak, link
+  postingan, skor breakdown, alasan cocok).
+- Filter status match: Potensial / Sedang Saya Follow-up / Closed / Lost.
+- Tombol **🌐 Jalankan Scraping** — memicu GitHub Actions dari jarak jauh.
+- Tombol **🎯 Match Ulang** — hitung ulang skor match dari data terkini (instan).
+- Tombol **📋 Paste & Parse** — tempel teks listing, AI langsung proses & simpan.
+- Update status lead/match langsung dari tabel/kartu.
 
-### 3. Buka dashboard kapan saja
-Buka link dashboard (lihat bagian Deploy) untuk melihat & memfilter semua data.
+### 3. Trigger scraping manual (bukan terjadwal)
+Scraping SENGAJA tidak berjalan otomatis (lihat `.github/workflows/scrape.yml`)
+— jalankan lewat tombol dashboard, atau tab **Actions → Run workflow** di GitHub.
 
 ---
 
-## ⚙️ Setup Pertama Kali (sekali saja)
+## ⚙️ Setup Pertama Kali
 
-1. **Isi file `.env`** (salin dari `.env.example`):
+1. **Buat database Turso** (gratis, https://turso.tech): `turso db create propmatch`,
+   lalu `turso db show propmatch` (URL) dan `turso db tokens create propmatch` (auth token).
+   ⚠️ Pakai URL dengan skema **`https://`**, bukan `libsql://` (Turso HTTP client
+   di lingkungan ini gagal handshake dengan `libsql://`/`wss://`).
+
+2. **Isi file `.env`** (salin dari `.env.example`):
    - `ANTHROPIC_API_KEY` — dari https://console.anthropic.com/settings/keys (berbayar, ~$0.0016/klasifikasi pakai Haiku 4.5)
-   - `TELEGRAM_BOT_TOKEN` — buat bot lewat @BotFather di Telegram
-   - `TELEGRAM_CHAT_ID` — ID chat Anda (kirim pesan ke bot lalu cek
-     `https://api.telegram.org/bot<TOKEN>/getUpdates`)
+   - `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` — buat bot lewat @BotFather
+   - `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` — dari langkah 1
 
-2. **Install dependency** (sekali):
+3. **Install dependency:**
    ```
    pip install -r requirements.txt
+   python -m playwright install chromium   # untuk scraper Threads
    ```
 
-3. **Jalankan bot interaktif:**
+4. **Tes koneksi database & buat schema (otomatis):**
+   ```
+   python db.py
+   ```
+
+5. **Jalankan bot interaktif:**
    ```
    python bot.py
    ```
-   Biarkan jendela ini terbuka selama Anda ingin bot aktif menerima forward.
 
-4. **Tes pipeline harian manual:**
+6. **Tes pipeline manual:**
    ```
    python main.py
    ```
 
-5. **(Kalau upgrade dari versi lama)** migrasikan data JSON lama ke database
-   SQLite baru (sekali saja, aman dijalankan berkali-kali):
-   ```
-   python migrate_json_to_sqlite.py
-   ```
+---
+
+## 🗄️ Database (Turso / libSQL remote)
+
+Turso adalah **satu-satunya sumber data** — dibaca/ditulis oleh laptop lokal,
+GitHub Actions (scraping), dan semua fungsi serverless Vercel sekaligus,
+tanpa perlu commit file database ke git. Tiga tabel inti: `sellers`, `buyers`,
+`matches`. Setiap listing punya `source` (asal data), `lead_status`
+(new/contacted/negotiating/closed/lost), dan `urgency_score` (0-100).
+
+Schema (termasuk migrasi kolom baru) dibuat otomatis & idempoten setiap
+koneksi baru dibuka — lihat `db.py`.
 
 ---
 
-## 🗄️ Database (SQLite)
-
-Database utama di `data/propmatch.db`, tiga tabel inti: `sellers`, `buyers`,
-`matches`. Setiap listing punya `source` (asal data: olx/threads/facebook/
-telegram_forward/landing_page), `lead_status` (new/contacted/negotiating/
-closed/lost — dikelola lewat `/status`), dan `urgency_score` (0-100, dari
-kata kunci mendesak).
-
-File `.db` ikut di-commit oleh GitHub Actions setiap pipeline jalan (sama
-seperti file JSON dulu) supaya data persisten antar-run.
-
----
-
-## 📝 Landing Page (form publik "cari" / "jual")
+## 📝 Landing Page (form publik "cari" / "jual") — opsional
 
 `landing.html` adalah halaman terpisah dari dashboard — link untuk dibagikan
-ke calon klien. Karena form-nya butuh backend (submit data), dan Vercel
-serverless **tidak** punya penyimpanan file permanen, alurnya:
+ke calon klien. Karena Vercel serverless tidak punya penyimpanan file
+permanen, alurnya lewat Google Sheets sebagai kotak surat sementara:
 
 ```
-landing.html → api/submit-lead.py → Google Sheets (kotak surat sementara)
+landing.html → api/submit-lead.py → Google Sheets
                                           ↓
-                            main.py (pipeline harian) menarik lead baru
-                                          ↓
-                                data/propmatch.db (SQLite)
+                       main.py (pipeline) menarik lead baru → Turso
 ```
 
-**Setup (sekali saja):**
+**Setup (sekali saja, opsional — sistem tetap jalan penuh tanpa ini):**
 1. Buat Google Sheet baru (boleh kosong, tab akan dibuat otomatis).
 2. Buat Service Account di [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts),
    aktifkan Google Sheets API, download file JSON kredensialnya.
-3. Share Google Sheet tadi ke email service account (lihat field `client_email`
-   di file JSON) dengan akses **Editor**.
-4. Isi `.env`:
-   - `GOOGLE_SHEET_URL` — link Sheet tadi.
-   - Untuk jalan di laptop: `GOOGLE_CREDENTIALS_FILE=credentials.json` (taruh
-     file JSON di folder ini, sudah ter-`.gitignore`).
-   - Untuk deploy Vercel: `GOOGLE_CREDENTIALS_JSON` — isi **seluruh konten**
-     file JSON tadi sebagai satu baris (lebih aman daripada commit file).
-5. Deploy `landing.html` + `api/submit-lead.py` (sudah terdaftar di
-   `vercel.json`, akses via `/landing`, `/cari`, atau `/jual`).
-
-Lead yang masuk lewat landing page **tidak butuh panggilan AI sama sekali**
-(data form sudah terstruktur) — gratis sepenuhnya.
+3. Share Google Sheet tadi ke email service account (`client_email` di file JSON) dengan akses **Editor**.
+4. Isi `.env`: `GOOGLE_SHEET_URL`, lalu `GOOGLE_CREDENTIALS_FILE` (lokal) atau
+   `GOOGLE_CREDENTIALS_JSON` (Vercel — isi seluruh konten JSON sebagai satu baris).
 
 ---
 
-## 🌐 Membuat Dashboard "Live" (online)
+## 🌐 Deploy (Vercel + GitHub Actions)
 
-`index.html` adalah file statis — bisa di-host di mana saja:
+**Dashboard live (Vercel):**
+1. `vercel --prod` dari folder ini (atau hubungkan repo GitHub ke Vercel).
+2. Set environment variables di Vercel: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`,
+   `DASHBOARD_USER`, `DASHBOARD_PASSWORD` (proteksi Basic Auth — dashboard berisi
+   data kontak pribadi), `GITHUB_TOKEN` + `GITHUB_REPO` (supaya tombol "Jalankan
+   Scraping" bisa memicu GitHub Actions dari dashboard).
+3. Dashboard otomatis live di URL Vercel Anda, render langsung dari Turso.
 
-**Opsi A — cPanel Rumahweb (hosting Anda):**
-Upload `index.html` ke folder `public_html` lewat File Manager cPanel. Selesai,
-dashboard bisa diakses di domain Anda.
-
-**Opsi B — Vercel / GitHub Pages (gratis & otomatis):**
-Hubungkan repo ke Vercel. Setiap pipeline harian meng-update `index.html` dan
-otomatis ter-deploy ulang. Isi `DASHBOARD_URL` di `.env`/secrets agar link
-muncul di laporan Telegram.
-
----
-
-## 🔁 Otomasi Harian (GitHub Actions)
-
-File `.github/workflows/daily_scrape.yml` sudah menjadwalkan pipeline tiap pagi.
-Yang perlu dilakukan:
-1. Push project ini ke repo GitHub.
+**Scraping (GitHub Actions, manual only):**
+1. Push project ke GitHub.
 2. Di **Settings → Secrets and variables → Actions**, tambahkan:
-   `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `DASHBOARD_URL`.
-   Kalau pakai landing page, tambahkan juga `GOOGLE_CREDENTIALS_JSON` dan
-   `GOOGLE_SHEET_URL`.
-3. Selesai — laporan akan terkirim otomatis setiap hari. Bisa juga dijalankan
-   manual lewat tab **Actions → Run workflow**.
+   `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `DASHBOARD_URL`,
+   `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`.
+3. Jalankan lewat tombol dashboard, atau tab **Actions → Run workflow**.
+   Tidak ada jadwal otomatis — ini keputusan desain yang disengaja.
 
 ---
 
 ## 🤖 Bot Selalu-Aktif Tanpa Server (opsional, lanjutan)
 
 `api/telegram.py` + `vercel.json` menyiapkan bot mode webhook di Vercel sehingga
-bot aktif 24 jam tanpa perlu `python bot.py` menyala. Catatan: di mode ini bot
-mencocokkan ke snapshot database terakhir; untuk simpan-baca penuh, gunakan
-`python bot.py` atau aktifkan Google Sheets.
-
-Daftarkan webhook sekali setelah deploy:
+bot aktif 24 jam tanpa perlu `python bot.py` menyala terus. Daftarkan webhook
+sekali setelah deploy:
 ```
 https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<app>.vercel.app/api/telegram
 ```
@@ -199,4 +182,6 @@ https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://<app>.vercel.app/api/
 ## 🔒 Keamanan
 - Semua kunci API ada di `.env` (tidak pernah di kode). `.env` & `credentials.json`
   sudah masuk `.gitignore` agar tidak ikut ter-upload ke GitHub.
+- Dashboard dilindungi HTTP Basic Auth (`DASHBOARD_USER`/`DASHBOARD_PASSWORD`)
+  karena berisi data kontak pribadi penjual/pembeli.
 - Data palsu (mock) hanya muncul jika `USE_MOCK_DATA=1` — di produksi tetap `0`.

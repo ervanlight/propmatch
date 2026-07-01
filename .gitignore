@@ -10,15 +10,19 @@ __pycache__/
 .venv/
 venv/
 
-# Data lokal lama (digantikan folder data/)
-local_db_*.json
-dashboard_output.html
-
-# Database asli (berisi kontak pribadi penjual/pembeli hasil scraping) --
-# TIDAK boleh ikut git, sumber data utama sekarang Turso (DB remote).
+# Data lokal lama (SQLite/JSON) -- sumber data satu-satunya sekarang Turso
+# (DB remote), lihat db.py. Berisi kontak pribadi penjual/pembeli hasil
+# scraping -- TIDAK boleh ikut git.
+data/*.json
 data/propmatch.db
 data/propmatch.db-wal
 data/propmatch.db-shm
+
+# Snapshot dashboard statis (debug lokal saja, lihat dashboard/generator.py)
+# -- berisi data pribadi kalau di-generate dari Turso asli, dan versi live
+# Vercel tidak memakainya (render langsung dari Turso tiap request).
+index.html
+_preview_local.html
 
 # OS
 .DS_Store
