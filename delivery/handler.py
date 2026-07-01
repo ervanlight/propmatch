@@ -53,6 +53,7 @@ def _build_help_text() -> str:
         "• /matchstatus &lt;id_penjual&gt; &lt;id_pencari&gt; &lt;status&gt; — tandai SATU "
         "pasangan match (potential/contacted/negotiating/closed/lost)\n"
         "• /hapus &lt;id&gt; — buang listing salah-klasifikasi/duplikat/spam\n"
+        "• /rekap [minggu|bulan] — rekap performa periode terakhir (default minggu)\n"
         "• /reminder — lead 'contacted' yang belum di-follow-up &gt;3 hari\n"
         "• /grup — link cepat ke grup Facebook properti Anda\n"
         "• /help — bantuan ini"
@@ -146,6 +147,9 @@ def _handle_command(text: str) -> str:
     if cmd == "hapus":
         return _handle_hapus_command(text)
 
+    if cmd == "rekap":
+        return _handle_rekap_command(text)
+
     if cmd == "reminder":
         return _handle_reminder_command()
 
@@ -211,6 +215,30 @@ def _handle_hapus_command(text: str) -> str:
     store.soft_delete(status, listing_id)
     label = f"{item.get('tipe_properti', '-')} di {item.get('lokasi_display') or item.get('lokasi', '-')}"
     return f"🗑️ <b>{esc(label)}</b> <code>#{esc(listing_id)}</code> sudah dibuang dari database."
+
+
+def _handle_rekap_command(text: str) -> str:
+    parts = text.strip().split()
+    period = parts[1].lower() if len(parts) > 1 else "minggu"
+    days = {"minggu": 7, "bulan": 30}.get(period)
+    if days is None:
+        return "Format: <code>/rekap [minggu|bulan]</code> (default minggu kalau tidak diisi)."
+
+    r = store.get_recap(days)
+    label = "7 hari terakhir" if days == 7 else "30 hari terakhir"
+    out = (
+        f"📈 <b>Rekap {esc(label)}</b>\n"
+        f"🆕 Lead baru: <b>{r['penjual_baru']}</b> penjual, <b>{r['pencari_baru']}</b> pencari\n"
+        f"🎯 Match baru: <b>{r['match_baru']}</b>\n"
+        f"✅ Closed: <b>{r['closed']}</b> · ❌ Lost: <b>{r['lost']}</b>\n"
+    )
+    if r["closing_rate"] is not None:
+        out += f"📊 Closing rate: <b>{r['closing_rate']}%</b> (dari match yang sudah diputuskan)\n"
+    else:
+        out += "📊 Closing rate: belum ada match yang closed/lost periode ini\n"
+    if r["avg_days_to_close"] is not None:
+        out += f"⏱️ Rata-rata lead → closed: <b>{r['avg_days_to_close']} hari</b>\n"
+    return out
 
 
 def _handle_reminder_command() -> str:
