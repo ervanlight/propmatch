@@ -32,6 +32,46 @@ logger = logging.getLogger("main")
 
 DASHBOARD_URL = os.getenv("DASHBOARD_URL", "")
 
+# Watchdog: kalau sumber ini menghasilkan 0 listing N run berturut-turut,
+# kemungkinan besar diblokir/berubah struktur -- tanpa ini, Harvey baru sadar
+# scraper mati kalau kebetulan iseng cek, bukan diberi tahu aktif. Facebook
+# DIKECUALIKAN karena 0 itu memang selalu diharapkan (stub disengaja, lihat
+# scraper/facebook_scraper.py).
+WATCHDOG_STREAK_THRESHOLD = 2
+WATCHDOG_EXCLUDE = {"Facebook"}
+
+
+def _check_scraper_watchdog(per_source: dict) -> None:
+    meta = store.get_meta()
+    alerts = []
+    updates = {}
+    for name, count in per_source.items():
+        if name in WATCHDOG_EXCLUDE:
+            continue
+        key = f"scraper_zero_streak_{name}"
+        streak = int(meta.get(key, 0) or 0)
+        if count == 0:
+            streak += 1
+        else:
+            streak = 0
+        if streak >= WATCHDOG_STREAK_THRESHOLD:
+            alerts.append((name, streak))
+            streak = 0  # reset supaya tidak alert tiap run selama masih 0 -- alert ulang tiap kelipatan threshold
+        updates[key] = streak
+
+    if updates:
+        store.save_meta(updates)
+
+    if alerts:
+        lines = [f"⚠️ <b>Scraper mungkin bermasalah</b>"]
+        for name, streak in alerts:
+            lines.append(f"• <b>{name}</b>: 0 listing selama {streak} run scraping berturut-turut. "
+                        f"Kemungkinan diblokir atau struktur halaman berubah, cek manual.")
+        try:
+            TelegramNotifier().send_message("\n".join(lines))
+        except Exception as e:
+            logger.error("Gagal kirim alert watchdog: %s", e)
+
 
 def run():
     logger.info("=== Memulai pipeline harian PropMatch ===")
@@ -39,6 +79,10 @@ def run():
     # 1. Scraping multi-sumber (OLX, Threads, Facebook) — best-effort, aman
     raw_listings, per_source = scrape_all()
     logger.info("Listing mentah terkumpul: %d dari sumber %s", len(raw_listings), per_source)
+    try:
+        _check_scraper_watchdog(per_source)
+    except Exception as e:
+        logger.error("Watchdog scraper gagal jalan: %s", e)
 
     # 2. Klasifikasi + simpan -- lewati panggilan AI untuk konten yang sudah
     # pernah diproses sebelumnya (mis. listing OLX yang sama masih tayang
