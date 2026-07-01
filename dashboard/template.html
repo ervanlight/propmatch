@@ -177,8 +177,8 @@
     <!-- Insight -->
     <div id="content-insight" class="tab-content">
       <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 mb-4">
-        <h3 class="font-semibold mb-1 text-sm">🎯 Motivated Seller Radar (harga di bawah rata-rata tipe-nya)</h3>
-        <p class="text-xs text-gray-400 mb-3">Penjual aktif yang harganya &ge;15% di bawah rata-rata harga tipe properti yang sama (min. 3 sampel per tipe supaya rata-ratanya bermakna). Kandidat "butuh uang" / paling layak diprioritaskan.</p>
+        <h3 class="font-semibold mb-1 text-sm">🎯 Motivated Seller Radar (harga di bawah rata-rata zona+tipe-nya)</h3>
+        <p class="text-xs text-gray-400 mb-3">Penjual aktif yang harganya &ge;15% di bawah rata-rata tipe properti yang sama DI ZONA WILAYAH yang sama (bukan rata-rata seluruh kota — rumah pusat kota vs pinggiran beda kelas harga). Min. 3 listing sebanding per zona+tipe. Kandidat "butuh uang" / paling layak diprioritaskan.</p>
         <div id="price-arbitrage" class="space-y-2"></div>
       </div>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -292,11 +292,31 @@
     }
 
     function runScrape(){
+      var btn = document.getElementById('btn-scrape');
       var restore = setBusy('btn-scrape', '⏳ Memicu...');
       apiPost('/api/trigger-scrape', {}).then(function(res){
-        restore();
-        if(res.data.ok) toast(res.data.message || 'Scraping dimulai.');
-        else toast('Gagal: ' + (res.data.error || 'unknown'));
+        if(res.data.ok){
+          // Scraping makan waktu 1-3 menit -- tidak ada perubahan visual
+          // langsung di dashboard, jadi toast 2 detik saja gampang kelewat
+          // ("kayak nggak kejadian apa-apa"). Tombolnya sendiri dibikin
+          // "menempel" jadi status sukses lebih lama, pas di tempat mata
+          // user sudah tertuju stelah klik.
+          if(btn){
+            btn.disabled = true;
+            btn.classList.remove('opacity-60','cursor-not-allowed');
+            btn.classList.add('bg-green-600','hover:bg-green-600');
+            btn.innerHTML = '✅ Dimulai, cek ~1-3 menit lagi';
+            setTimeout(function(){
+              btn.disabled = false;
+              btn.classList.remove('bg-green-600','hover:bg-green-600');
+              btn.innerHTML = '🌐 Jalankan Scraping';
+            }, 8000);
+          }
+          toast(res.data.message || 'Scraping dimulai.');
+        } else {
+          restore();
+          toast('Gagal: ' + (res.data.error || 'unknown'));
+        }
       }).catch(function(e){ restore(); toast('Gagal: ' + e); });
     }
 
@@ -556,50 +576,30 @@
       });
       barChart(document.getElementById('chart-skor'), buckets, 'bg-rose-500');
 
-      renderPriceArbitrage(penjual);
+      renderPriceArbitrage();
     }
 
     // "Motivated seller radar": penjual aktif dengan harga jauh di bawah
-    // rata-rata tipe propertinya sendiri -- sinyal kuat butuh-uang/BU walau
-    // teks listingnya sendiri tidak menyebut itu eksplisit.
-    var PRICE_ARBITRAGE_THRESHOLD = 0.15;   // minimal 15% di bawah rata-rata
-    var PRICE_ARBITRAGE_MIN_SAMPLE = 3;     // per tipe, biar rata-ratanya bermakna
-
-    function renderPriceArbitrage(penjual){
-      var byTipe = {};
-      penjual.forEach(function(p){
-        if(!p.harga || p.harga<=0) return;
-        var t = p.tipe_properti || 'lainnya';
-        (byTipe[t] = byTipe[t] || []).push(p);
-      });
-      var flagged = [];
-      Object.keys(byTipe).forEach(function(t){
-        var list = byTipe[t];
-        if(list.length < PRICE_ARBITRAGE_MIN_SAMPLE) return;
-        var avg = list.reduce(function(s,x){ return s+x.harga; }, 0) / list.length;
-        list.forEach(function(p){
-          var pct = (avg - p.harga) / avg;
-          if(pct >= PRICE_ARBITRAGE_THRESHOLD){
-            flagged.push({item:p, avg:avg, pct:pct});
-          }
-        });
-      });
-      flagged.sort(function(a,b){ return b.pct - a.pct; });
-
+    // rata-rata tipe+ZONA WILAYAHnya sendiri (bukan rata-rata seluruh kota
+    // -- rumah Surabaya pusat vs pinggiran Sidoarjo beda kelas harga jauh).
+    // Dihitung server-side (matcher/engine.compute_price_arbitrage) supaya
+    // pakai klaster lokasi yang SAMA dengan mesin matching, bukan logika
+    // terpisah di JS yang gampang tidak sinkron -- lihat DB.price_arbitrage.
+    function renderPriceArbitrage(){
+      var flagged = DB.price_arbitrage || [];
       var container = document.getElementById('price-arbitrage');
       if(!flagged.length){
-        container.innerHTML = '<div class="text-xs text-gray-400">Belum ada penjual yang harganya jauh di bawah rata-rata tipe-nya (butuh minimal '+PRICE_ARBITRAGE_MIN_SAMPLE+' listing per tipe untuk mulai dihitung).</div>';
+        container.innerHTML = '<div class="text-xs text-gray-400">Belum ada penjual yang harganya jauh di bawah rata-rata zona+tipe-nya (butuh minimal 3 listing sezona untuk mulai dihitung).</div>';
         return;
       }
-      container.innerHTML = flagged.slice(0,10).map(function(f){
-        var p = f.item;
+      container.innerHTML = flagged.slice(0,10).map(function(p){
         return '<div class="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/40 rounded-lg px-3 py-2">'
           + '<div class="min-w-0">'
           +   '<div class="text-sm font-medium capitalize truncate">'+esc(p.tipe_properti||'-')+' · '+esc(p.lokasi_display||p.lokasi||'-')+' '+idChip(p.id)+'</div>'
-          +   '<div class="text-xs text-gray-500 dark:text-gray-400">'+fmtRupiah(p.harga)+' vs rata-rata '+fmtRupiah(Math.round(f.avg))+' untuk tipe ini</div>'
+          +   '<div class="text-xs text-gray-500 dark:text-gray-400">'+fmtRupiah(p.harga)+' vs rata-rata '+fmtRupiah(p.avg_price)+' di zona ini ('+p.sample_size+' listing sebanding)</div>'
           + '</div>'
           + '<div class="flex items-center gap-2 flex-shrink-0">'
-          +   '<span class="text-xs font-bold text-red-600 dark:text-red-400">-'+Math.round(f.pct*100)+'%</span>'
+          +   '<span class="text-xs font-bold text-red-600 dark:text-red-400">-'+Math.round(p.pct_below*100)+'%</span>'
           +   waLink(p.kontak)
           + '</div>'
           + '</div>';
