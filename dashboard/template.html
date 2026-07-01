@@ -434,11 +434,28 @@
         + '<div class="absolute top-0 right-0 '+skorCls+' text-white font-bold text-sm px-3 py-1 rounded-bl-lg">'+skor+'/10</div>'
         + '<div class="absolute top-0 left-0">'+badgeStatus(m.status)+'</div>'
         + '<div class="p-4 pt-7">'
-        +   '<div class="mb-2 flex items-start justify-between gap-2"><div><div class="text-xs text-gray-400 uppercase">Penjual '+idChip(m.penjual_id)+'</div>'
-        +     '<div class="font-semibold capitalize text-gray-900 dark:text-white">'+esc(m.penjual_tipe||'-')+' · '+esc(m.penjual_lokasi||'-')+'</div>'
-        +     '<div class="text-blue-600 font-bold">'+fmtRupiah(m.penjual_harga)+'</div></div></div>'
-        +   '<div class="mb-3"><div class="text-xs text-gray-400 uppercase">Pencari '+idChip(m.pencari_id)+'</div>'
-        +     '<div class="text-sm text-gray-700 dark:text-gray-300">'+esc(m.pencari_lokasi||'-')+' · budget '+fmtRupiah(m.pencari_budget)+'</div></div>'
+        +   '<div class="grid grid-cols-2 gap-3 mb-3">'
+        +     '<div class="border-r border-gray-100 dark:border-gray-700 pr-3">'
+        +       '<div class="text-xs text-gray-400 uppercase">🏠 Penjual '+idChip(m.penjual_id)+'</div>'
+        +       '<div class="font-semibold capitalize text-gray-900 dark:text-white">'+esc(m.penjual_tipe||'-')+' · '+esc(m.penjual_lokasi||'-')+'</div>'
+        +       '<div class="text-blue-600 font-bold">'+fmtRupiah(m.penjual_harga)+'</div>'
+        +       (m.penjual_catatan?'<p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">'+esc(m.penjual_catatan)+'</p>':'')
+        +       '<div class="flex gap-1 mt-2">'
+        +         (m.penjual_url?'<a href="'+esc(m.penjual_url)+'" target="_blank" class="text-[10px] px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">🔗 Iklan Penjual</a>':'')
+        +         (m.penjual_kontak?waLink(m.penjual_kontak):'')
+        +       '</div>'
+        +     '</div>'
+        +     '<div>'
+        +       '<div class="text-xs text-gray-400 uppercase">🔍 Pencari '+idChip(m.pencari_id)+'</div>'
+        +       '<div class="text-sm font-medium text-gray-700 dark:text-gray-300">'+esc(m.pencari_lokasi||'-')+'</div>'
+        +       '<div class="text-blue-600 font-bold">budget '+fmtRupiah(m.pencari_budget)+'</div>'
+        +       (m.pencari_catatan?'<p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">'+esc(m.pencari_catatan)+'</p>':'')
+        +       '<div class="flex gap-1 mt-2">'
+        +         (m.pencari_url?'<a href="'+esc(m.pencari_url)+'" target="_blank" class="text-[10px] px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700">🔗 Postingan Pencari</a>':'')
+        +         (m.pencari_kontak?waLink(m.pencari_kontak):'')
+        +       '</div>'
+        +     '</div>'
+        +   '</div>'
         +   '<div class="space-y-1 mb-3">'
         +     scoreBar('Lokasi', r.lokasi||0, 40)
         +     scoreBar('Harga', r.harga||0, 35)
@@ -446,12 +463,7 @@
         +     scoreBar('Bayar', r.pembayaran||0, 5)
         +   '</div>'
         +   (m.urgency_score ? '<div class="text-[11px] text-amber-600 mb-2">⏱️ Urgensi: '+m.urgency_score+'/100</div>' : '')
-        +   '<p class="text-sm text-gray-600 dark:text-gray-300 mb-3 bg-gray-50 dark:bg-gray-700/50 rounded p-2">💡 '+esc(alasan)+'</p>'
-        +   '<div class="flex gap-2 mb-2">'
-        +     (m.penjual_url?'<a href="'+esc(m.penjual_url)+'" target="_blank" class="flex-1 text-center text-xs px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Iklan Penjual</a>':'')
-        +     (m.penjual_kontak?waLink(m.penjual_kontak):'')
-        +     (m.pencari_kontak?waLink(m.pencari_kontak):'')
-        +   '</div>'
+        +   '<p class="text-sm text-gray-600 dark:text-gray-300 mb-3 bg-gray-50 dark:bg-gray-700/50 rounded p-2">💡 <b>Kenapa cocok:</b> '+esc(alasan)+'</p>'
         +   '<div class="text-[10px] text-gray-400 border-t border-gray-100 dark:border-gray-700 pt-2">'
         +     '<span>Tandai hasil follow-up pasangan ini:</span>'
         +     '<div class="mt-1">'+matchStatusActions(m.penjual_id, m.pencari_id)+'</div>'

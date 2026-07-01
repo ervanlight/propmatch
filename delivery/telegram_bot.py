@@ -146,8 +146,13 @@ def build_daily_report(stats: dict, penjual_baru: int, pencari_baru: int,
                 f" (budget {format_rupiah(m.get('pencari_budget'))})\n"
                 f"💡 <i>{esc(alasan)}</i>\n"
             )
+            links = []
             if m.get("penjual_url"):
-                msg += f"🔗 <a href='{esc(m['penjual_url'])}'>Lihat iklan penjual</a>\n"
+                links.append(f"<a href='{esc(m['penjual_url'])}'>Iklan penjual</a>")
+            if m.get("pencari_url"):
+                links.append(f"<a href='{esc(m['pencari_url'])}'>Postingan pencari</a>")
+            if links:
+                msg += "🔗 " + " · ".join(links) + "\n"
             wa_penjual = wa_link(m.get("penjual_kontak", ""),
                                 draft_pesan_penjual(m.get("penjual_lokasi", ""), m.get("penjual_tipe", "")))
             if wa_penjual:

@@ -172,11 +172,13 @@ def find_matches(daftar_jual: list, daftar_cari: list, threshold: int = None,
                 "penjual_tipe": jual.get("tipe_properti"),
                 "penjual_url": jual.get("source_url"),
                 "penjual_kontak": jual.get("kontak"),
+                "penjual_catatan": jual.get("catatan_ai"),
                 "pencari_id": cari.get("id"),
                 "pencari_lokasi": cari.get("lokasi_display") or cari.get("lokasi"),
                 "pencari_budget": cari.get("harga"),
                 "pencari_url": cari.get("source_url"),
                 "pencari_kontak": cari.get("kontak"),
+                "pencari_catatan": cari.get("catatan_ai"),
             })
 
     results.sort(key=lambda x: x["combined_score"], reverse=True)

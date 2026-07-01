@@ -233,25 +233,28 @@ def save_matches(matches: list) -> dict:
             res = conn.execute("""
                 INSERT INTO matches (seller_id, buyer_id, skor, skor_10, urgency_score,
                     combined_score, rincian, alasan, alasan_ai, penjual_lokasi, penjual_harga,
-                    penjual_tipe, penjual_url, penjual_kontak, pencari_lokasi, pencari_budget,
-                    pencari_url, pencari_kontak, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'potential', ?, ?)
+                    penjual_tipe, penjual_url, penjual_kontak, penjual_catatan, pencari_lokasi,
+                    pencari_budget, pencari_url, pencari_kontak, pencari_catatan, status,
+                    created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'potential', ?, ?)
                 ON CONFLICT(seller_id, buyer_id) DO UPDATE SET
                     skor = excluded.skor, skor_10 = excluded.skor_10,
                     urgency_score = excluded.urgency_score, combined_score = excluded.combined_score,
                     rincian = excluded.rincian, alasan = excluded.alasan,
                     penjual_lokasi = excluded.penjual_lokasi, penjual_harga = excluded.penjual_harga,
                     penjual_tipe = excluded.penjual_tipe, penjual_url = excluded.penjual_url,
-                    penjual_kontak = excluded.penjual_kontak, pencari_lokasi = excluded.pencari_lokasi,
-                    pencari_budget = excluded.pencari_budget, pencari_url = excluded.pencari_url,
-                    pencari_kontak = excluded.pencari_kontak, updated_at = excluded.updated_at
+                    penjual_kontak = excluded.penjual_kontak, penjual_catatan = excluded.penjual_catatan,
+                    pencari_lokasi = excluded.pencari_lokasi, pencari_budget = excluded.pencari_budget,
+                    pencari_url = excluded.pencari_url, pencari_kontak = excluded.pencari_kontak,
+                    pencari_catatan = excluded.pencari_catatan, updated_at = excluded.updated_at
                 WHERE matches.status = 'potential'
             """, (seller_id, buyer_id, m.get("skor"), m.get("skor_10"),
                   m.get("urgency_score", 0), m.get("combined_score", m.get("skor")),
                   _json.dumps(m.get("rincian", {})), m.get("alasan", ""), m.get("alasan_ai", ""),
                   m.get("penjual_lokasi"), m.get("penjual_harga"), m.get("penjual_tipe"),
-                  m.get("penjual_url"), m.get("penjual_kontak"), m.get("pencari_lokasi"),
-                  m.get("pencari_budget"), m.get("pencari_url"), m.get("pencari_kontak"), now, now))
+                  m.get("penjual_url"), m.get("penjual_kontak"), m.get("penjual_catatan"),
+                  m.get("pencari_lokasi"), m.get("pencari_budget"), m.get("pencari_url"),
+                  m.get("pencari_kontak"), m.get("pencari_catatan"), now, now))
             if res.last_insert_rowid:
                 new_count += 1
             else:

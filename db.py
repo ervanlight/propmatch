@@ -72,10 +72,12 @@ SCHEMA_STATEMENTS = [
         penjual_tipe TEXT,
         penjual_url TEXT,
         penjual_kontak TEXT,
+        penjual_catatan TEXT,
         pencari_lokasi TEXT,
         pencari_budget INTEGER,
         pencari_url TEXT,
         pencari_kontak TEXT,
+        pencari_catatan TEXT,
         -- Status pasangan match ITU SENDIRI (beda dari lead_status milik
         -- penjual/pencari): 'potential' = masih dihitung ulang otomatis tiap
         -- matching jalan, 'contacted'/'negotiating' = sedang Harvey follow-up
@@ -89,6 +91,13 @@ SCHEMA_STATEMENTS = [
     """,
     "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)",
     "CREATE TABLE IF NOT EXISTS seen_raw (hash TEXT PRIMARY KEY, created_at TEXT)",
+    # Migrasi kolom baru untuk tabel matches yang sudah ada di Turso (CREATE
+    # TABLE IF NOT EXISTS di atas tidak menambah kolom ke tabel lama) --
+    # menampilkan "apa yang diminta penjual/pencari", bukan cuma lokasi+harga.
+    # Turso TIDAK mendukung "ADD COLUMN IF NOT EXISTS" (lihat _ensure_schema:
+    # statement ALTER TABLE ditangani idempotent lewat try/except di sana).
+    "ALTER TABLE matches ADD COLUMN penjual_catatan TEXT",
+    "ALTER TABLE matches ADD COLUMN pencari_catatan TEXT",
     "CREATE INDEX IF NOT EXISTS idx_sellers_deleted ON sellers(deleted_at)",
     "CREATE INDEX IF NOT EXISTS idx_buyers_deleted ON buyers(deleted_at)",
     "CREATE INDEX IF NOT EXISTS idx_sellers_lead_status ON sellers(lead_status)",
@@ -120,7 +129,16 @@ def _ensure_schema(client: libsql_client.ClientSync) -> None:
     if _initialized:
         return
     for stmt in SCHEMA_STATEMENTS:
-        client.execute(stmt)
+        try:
+            client.execute(stmt)
+        except Exception:
+            # ALTER TABLE ADD COLUMN tidak idempotent di Turso (tidak dukung
+            # "IF NOT EXISTS") -- begitu kolom sudah ada, statement ini akan
+            # selalu gagal di cold-start berikutnya. Aman diabaikan HANYA
+            # untuk ALTER TABLE; error lain (CREATE TABLE/INDEX) tetap dilempar.
+            if stmt.strip().upper().startswith("ALTER TABLE"):
+                continue
+            raise
     _initialized = True
 
 

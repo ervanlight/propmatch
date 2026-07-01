@@ -85,8 +85,13 @@ def _match_summary_line(m: dict, i: int) -> str:
         f" <code>#{esc(m.get('pencari_id', ''))}</code>\n"
         f"💡 <i>{esc(alasan)}</i>\n"
     )
+    links = []
     if m.get("penjual_url"):
-        line += f"🔗 <a href='{esc(m['penjual_url'])}'>Iklan penjual</a>\n"
+        links.append(f"🔗 <a href='{esc(m['penjual_url'])}'>Iklan penjual</a>")
+    if m.get("pencari_url"):
+        links.append(f"🔗 <a href='{esc(m['pencari_url'])}'>Postingan pencari</a>")
+    if links:
+        line += " · ".join(links) + "\n"
     wa_p = wa_link(m.get("penjual_kontak", ""),
                   draft_pesan_penjual(m.get("penjual_lokasi", ""), m.get("penjual_tipe", "")))
     wa_c = wa_link(m.get("pencari_kontak", ""),
