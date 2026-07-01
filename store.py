@@ -10,7 +10,7 @@ import json as _json
 import logging
 
 import db
-from models import normalize_listing, now_iso
+from models import normalize_listing, normalize_phone, now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +63,81 @@ def mark_seen_raw(h: str) -> None:
         conn.close()
 
 
+# Dedup lintas-sumber (fuzzy): toleransi harga untuk dianggap "listing yang
+# sama" walau angkanya tidak identik persis (mis. dibulatkan beda di tiap
+# channel).
+_FUZZY_PRICE_TOLERANCE = 0.08
+# Jangan gabungkan ke listing yang sudah terlalu lama -- kalau lokasi/tipe/
+# harga kebetulan mirip tapi listingnya dari bulan lalu, lebih aman dianggap
+# listing baru daripada salah gabung ke histori yang sudah basi.
+_FUZZY_MAX_AGE_DAYS = 21
+
+
+def _find_fuzzy_duplicate(conn, table: str, item: dict) -> dict | None:
+    """
+    Cari listing AKTIF yang kemungkinan besar adalah ORANG/PROPERTI YANG SAMA
+    walau id-nya beda (mis. sumber OLX vs forward WA manual -- teksnya beda
+    kata-kata jadi hash id-nya juga beda). Dua jalur, dari yang paling yakin:
+
+    1. Nomor kontak sama (setelah dinormalisasi) -- sinyal identitas paling
+       kuat, orang yang sama biasanya pakai nomor HP yang sama di semua
+       channel walau redaksional listingnya beda.
+    2. Tipe properti + lokasi (persis, sudah dinormalisasi) + harga
+       berdekatan (toleransi 8%) + listing lain itu masih baru (<=21 hari).
+
+    SENGAJA konservatif (bukan fuzzy string-matching lokasi/teks) supaya
+    tidak salah gabung dua lead yang sebetulnya berbeda -- lebih aman
+    menyimpan sedikit duplikat asli daripada kehilangan satu lead nyata
+    karena ketiban gabung ke listing orang lain.
+    """
+    import datetime
+
+    rows = conn.execute(
+        f"SELECT * FROM {table} WHERE deleted_at IS NULL AND lead_status != 'closed'"
+    ).rows
+    if not rows:
+        return None
+
+    target_phone = normalize_phone(item.get("kontak", ""))
+    candidates = [r.asdict() for r in rows]
+
+    if target_phone:
+        for cand in candidates:
+            if normalize_phone(cand.get("kontak", "")) == target_phone:
+                return cand
+
+    if not (item.get("lokasi") and item.get("harga")):
+        return None
+
+    cutoff = datetime.datetime.now() - datetime.timedelta(days=_FUZZY_MAX_AGE_DAYS)
+    best, best_diff = None, None
+    for cand in candidates:
+        if cand.get("tipe_properti") != item.get("tipe_properti"):
+            continue
+        if (cand.get("lokasi") or "") != item.get("lokasi"):
+            continue
+        cand_harga = cand.get("harga") or 0
+        if not cand_harga:
+            continue
+        try:
+            created = datetime.datetime.fromisoformat(cand.get("created_at") or "")
+        except ValueError:
+            continue
+        if created < cutoff:
+            continue
+        diff = abs(cand_harga - item["harga"]) / max(cand_harga, item["harga"])
+        if diff <= _FUZZY_PRICE_TOLERANCE and (best_diff is None or diff < best_diff):
+            best, best_diff = cand, diff
+    return best
+
+
 def save_listing(raw: dict, source: str = None) -> str | None:
     """
     Simpan satu listing (hasil klasifikasi). Mengembalikan 'new', 'updated',
-    atau None (kalau TIDAK_RELEVAN/diabaikan). Dedup berbasis id -- listing
-    lama TIDAK PERNAH dihapus, hanya diperkaya kalau ada field baru.
+    atau None (kalau TIDAK_RELEVAN/diabaikan). Dedup dua lapis: id persis
+    (sumber sama, konten sama) lalu fuzzy lintas-sumber (lihat
+    _find_fuzzy_duplicate) -- listing lama TIDAK PERNAH dihapus, hanya
+    diperkaya kalau ada field baru.
     """
     from classifier.urgency import compute_urgency_score
 
@@ -83,9 +153,9 @@ def save_listing(raw: dict, source: str = None) -> str | None:
     conn = db.get_connection()
     try:
         existing = _one(conn.execute(f"SELECT * FROM {table} WHERE id = ?", (item["id"],)))
+        existing = existing.asdict() if existing else _find_fuzzy_duplicate(conn, table, item)
 
         if existing:
-            existing = existing.asdict()
             updates = {"updated_at": now, "deleted_at": None, "last_confirmed_at": now}
             for k in ("lokasi", "lokasi_display", "tipe_properti", "kontak", "urgensi",
                      "metode_bayar", "kualitas_lead", "catatan_ai", "source_url", "source_name"):
@@ -101,7 +171,7 @@ def save_listing(raw: dict, source: str = None) -> str | None:
             updates["urgency_score"] = max(urgency, existing.get("urgency_score") or 0)
             set_clause = ", ".join(f"{k} = ?" for k in updates)
             conn.execute(f"UPDATE {table} SET {set_clause} WHERE id = ?",
-                        (*updates.values(), item["id"]))
+                        (*updates.values(), existing["id"]))
             return "updated"
 
         conn.execute(f"""
@@ -344,4 +414,58 @@ def stats() -> dict:
         "total_match": len(matches),
         "total_hot": hot,
         "total_closed": closed,
+    }
+
+
+def get_recap(days: int = 7) -> dict:
+    """
+    Rekap agregat periode terakhir `days` hari: lead baru, match baru,
+    closing rate, rata-rata waktu lead->closed. Dipakai /rekap (Telegram)
+    supaya Harvey bisa review performa mingguan/bulanan tanpa query manual.
+    """
+    import datetime
+
+    cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).isoformat(timespec="seconds")
+    conn = db.get_connection()
+    try:
+        new_penjual = conn.execute(
+            "SELECT COUNT(*) AS c FROM sellers WHERE created_at >= ? AND deleted_at IS NULL",
+            (cutoff,)).rows[0]["c"]
+        new_pencari = conn.execute(
+            "SELECT COUNT(*) AS c FROM buyers WHERE created_at >= ? AND deleted_at IS NULL",
+            (cutoff,)).rows[0]["c"]
+        new_match = conn.execute(
+            "SELECT COUNT(*) AS c FROM matches WHERE created_at >= ?", (cutoff,)).rows[0]["c"]
+        closed_rows = conn.execute(
+            "SELECT created_at, updated_at FROM matches WHERE status = 'closed' AND updated_at >= ?",
+            (cutoff,)).rows
+        lost_count = conn.execute(
+            "SELECT COUNT(*) AS c FROM matches WHERE status = 'lost' AND updated_at >= ?",
+            (cutoff,)).rows[0]["c"]
+    finally:
+        conn.close()
+
+    closed_count = len(closed_rows)
+    lead_to_close_days = []
+    for r in closed_rows:
+        try:
+            created = datetime.datetime.fromisoformat(r["created_at"])
+            updated = datetime.datetime.fromisoformat(r["updated_at"])
+            lead_to_close_days.append((updated - created).days)
+        except (TypeError, ValueError):
+            continue
+    avg_days_to_close = round(sum(lead_to_close_days) / len(lead_to_close_days), 1) if lead_to_close_days else None
+
+    resolved = closed_count + lost_count
+    closing_rate = round(closed_count / resolved * 100) if resolved else None
+
+    return {
+        "days": days,
+        "penjual_baru": new_penjual,
+        "pencari_baru": new_pencari,
+        "match_baru": new_match,
+        "closed": closed_count,
+        "lost": lost_count,
+        "closing_rate": closing_rate,
+        "avg_days_to_close": avg_days_to_close,
     }

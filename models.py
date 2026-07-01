@@ -60,6 +60,25 @@ def normalize_lokasi(value) -> str:
     return str(value).strip().lower()
 
 
+def normalize_phone(raw: str) -> str:
+    """Normalisasi nomor HP Indonesia ke format internasional 62xxx tanpa
+    simbol. Terima input mulai dari 0, +62, 62, atau dengan spasi/strip.
+    Dipakai untuk bikin link wa.me (delivery/telegram_bot.py) SEKALIGUS
+    sebagai kunci identitas untuk dedup lintas-sumber (store.py) -- nomor HP
+    yang sama = kemungkinan besar orang yang sama, walau teks listing beda
+    kata-kata di tiap channel."""
+    digits = re.sub(r"[^\d]", "", raw or "")
+    if not digits:
+        return ""
+    if digits.startswith("0"):
+        digits = "62" + digits[1:]
+    elif digits.startswith("620"):
+        digits = "62" + digits[3:]
+    elif not digits.startswith("62"):
+        digits = "62" + digits
+    return digits
+
+
 def normalize_tipe(value) -> str:
     if not value:
         return "lainnya"

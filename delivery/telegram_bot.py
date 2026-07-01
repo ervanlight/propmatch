@@ -5,13 +5,13 @@ Mengirim ringkasan ke Harvey: jumlah penjual/pencari baru, lead HOT, dan
 Top Match hari ini dalam format yang terbaca dalam 5 detik.
 """
 import html
-import re
 import logging
 import urllib.parse
 
 import requests
 
 import config
+from models import normalize_phone  # noqa: F401 -- re-exported, dipakai luas di modul ini
 
 logger = logging.getLogger(__name__)
 
@@ -68,21 +68,6 @@ class TelegramNotifier:
         if current:
             chunks.append(current)
         return chunks
-
-
-def normalize_phone(raw: str) -> str:
-    """Normalisasi nomor HP Indonesia ke format internasional 62xxx tanpa
-    simbol. Terima input mulai dari 0, +62, 62, atau dengan spasi/strip."""
-    digits = re.sub(r"[^\d]", "", raw or "")
-    if not digits:
-        return ""
-    if digits.startswith("0"):
-        digits = "62" + digits[1:]
-    elif digits.startswith("620"):
-        digits = "62" + digits[3:]
-    elif not digits.startswith("62"):
-        digits = "62" + digits
-    return digits
 
 
 def wa_link(kontak: str, pesan: str = "") -> str:
