@@ -10,7 +10,8 @@ import json as _json
 import logging
 
 import db
-from models import normalize_listing, normalize_phone, now_iso, now_wib
+from models import (normalize_listing, normalize_phone, now_iso, now_wib,
+                    is_out_of_area)
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +144,16 @@ def save_listing(raw: dict, source: str = None) -> str | None:
 
     item = normalize_listing(raw)
     if item["status"] not in ("JUAL", "CARI"):
+        return None
+
+    # Gerbang kualitas geografis: buang lead yang JELAS di luar wilayah fokus
+    # Sidoarjo–Surabaya (ditandai AI lewat 'dalam_wilayah', atau terdeteksi
+    # menyebut kota lain tanpa penanda wilayah target). Sengaja konservatif --
+    # lokasi yang sekadar tak dikenal TIDAK ditolak, hanya yang benar-benar
+    # yakin luar-area, supaya lead valid tidak ikut terbuang.
+    if raw.get("dalam_wilayah") is False or is_out_of_area(item.get("lokasi"), item.get("raw_text")):
+        logger.info("Listing ditolak (di luar wilayah fokus): %s",
+                    item.get("lokasi_display") or item.get("lokasi") or "-")
         return None
 
     table = _table_for_status(item["status"])

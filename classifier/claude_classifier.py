@@ -19,7 +19,7 @@ PROMPT_TEMPLATE = """Anda adalah AI asisten broker properti ahli di wilayah Sura
 Sistem ini KHUSUS jual-beli properti -- BUKAN sewa/kontrakan (semua tipe
 properti: rumah, ruko, tanah, apartemen, kos, gudang, villa, boleh masuk,
 ASALKAN transaksinya jual-beli, bukan sewa).
-Baca data mentah berikut (bisa berupa iklan, pesan WhatsApp, atau postingan media sosial) lalu ekstrak informasinya.
+Baca data mentah berikut (bisa berupa iklan, pesan WhatsApp, atau postingan media sosial) lalu ekstrak informasinya DENGAN TELITI. Lebih baik menandai TIDAK_RELEVAN daripada memaksakan data yang meragukan masuk sebagai lead.
 
 DATA MENTAH:
 \"\"\"
@@ -27,12 +27,18 @@ DATA MENTAH:
 \"\"\"
 
 ATURAN PENTING:
-1. "status" = JUAL jika pihak MENJUAL properti (bukan menyewakan/mengontrakkan); CARI jika pihak MENCARI/ingin MEMBELI properti (bukan mencari sewa/kontrakan/kos harian-bulanan); TIDAK_RELEVAN untuk SEMUA kasus lain -- termasuk properti disewakan/dikontrakkan, kos-kosan yang disewa per kamar, pencari sewa/kontrakan, dan hal yang sama sekali bukan tentang properti.
-2. "harga" WAJIB berupa angka rupiah penuh (650 juta -> 650000000, 1,2 M -> 1200000000). Jika tidak disebut, isi 0.
+1. "status":
+   - JUAL = pihak MENJUAL properti (transaksi beli-putus, bukan sewa).
+   - CARI = pihak MENCARI/ingin MEMBELI properti untuk dimiliki (bukan cari sewa/kontrakan/kos).
+   - TIDAK_RELEVAN = SEMUA kasus lain. WAJIB TIDAK_RELEVAN untuk: properti disewakan/dikontrakkan/kos harian-bulanan, pencari sewa/kontrakan, iklan JASA (kontraktor, arsitek, desain, renovasi, cleaning), iklan KPR/pinjaman/KTA/pegadaian/investasi, promosi agen/developer yang TIDAK menyebut properti konkret (cuma "hubungi kami, banyak pilihan"), lowongan kerja, dan apa pun yang bukan transaksi jual-beli satu properti konkret.
+2. "harga" WAJIB angka rupiah penuh (650 juta -> 650000000; 1,2 M -> 1200000000; 1.5 miliar -> 1500000000). JANGAN pernah keliru satuan (jangan tulis 650 untuk "650 juta"). Untuk status CARI, isi "harga" = BUDGET MAKSIMUM pencari (batas atas); kalau disebut rentang "500-700jt", ambil 700000000. Jika harga/budget tidak disebut, isi 0.
 3. "kualitas_lead" = HOT jika ada sinyal mendesak (BU, butuh cepat, harga di bawah pasar, sangat dicari); WARM jika normal & jelas; COLD jika info minim/ragu.
-4. "lokasi" = kecamatan/daerah spesifik, contoh: "Waru, Sidoarjo".
-5. "tipe_properti" = salah satu dari: Rumah, Ruko, Kos, Tanah, Apartemen, Gudang, Villa, Lainnya.
-6. "catatan_ai" = MAKSIMAL 15 kata, satu kalimat singkat saja.
+4. "lokasi" = kecamatan/daerah spesifik + kota, contoh: "Waru, Sidoarjo". Kalau hanya kota tanpa kecamatan, tulis kotanya saja. Kalau tidak ada info lokasi, isi "".
+5. "tipe_properti" = salah satu: Rumah, Ruko, Kos, Tanah, Apartemen, Gudang, Villa, Lainnya.
+6. "dalam_wilayah" = true HANYA jika properti berada di Surabaya, Sidoarjo, atau sekitarnya langsung (Gedangan, Waru, Taman, Krian, dst). false jika jelas di kota/wilayah lain (Jakarta, Malang, Bali, dll). Jika lokasi tidak diketahui, isi true (jangan buang lead karena ragu).
+7. "is_agen" = true jika postingan jelas dari agen/broker/developer yang menawarkan BANYAK unit atau menyebar iklan massal; false jika tampak dari pemilik langsung atau pencari perorangan.
+8. "keyakinan" = 0-100, seberapa yakin Anda klasifikasi ini benar & datanya bisa dipakai (rendah kalau teks ambigu/minim).
+9. "catatan_ai" = MAKSIMAL 15 kata, satu kalimat singkat.
 """
 
 OUTPUT_SCHEMA = {
@@ -48,10 +54,13 @@ OUTPUT_SCHEMA = {
         "urgensi": {"type": "string", "enum": ["BU", "Cepat", "Normal"]},
         "metode_bayar": {"type": "string"},
         "kualitas_lead": {"type": "string", "enum": ["HOT", "WARM", "COLD"]},
+        "dalam_wilayah": {"type": "boolean"},
+        "is_agen": {"type": "boolean"},
+        "keyakinan": {"type": "integer"},
         "catatan_ai": {"type": "string"},
     },
     "required": ["status", "lokasi", "harga", "tipe_properti", "urgensi",
-                "kualitas_lead", "catatan_ai"],
+                "kualitas_lead", "dalam_wilayah", "keyakinan", "catatan_ai"],
     "additionalProperties": False,
 }
 

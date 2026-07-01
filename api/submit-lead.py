@@ -39,7 +39,18 @@ def _build_listing(kind: str, data: dict) -> dict:
 
     status = "JUAL" if kind == "jual" else "CARI"
     catatan = data.get("catatan", "")
-    harga = parse_harga(data.get("harga_min") or data.get("harga_max") or 0)
+    harga_min = parse_harga(data.get("harga_min") or 0)
+    harga_max = parse_harga(data.get("harga_max") or 0)
+    # PENCARI: angka pencocokan = BUDGET MAKSIMUM (batas atas) -- itu plafon
+    # yang menentukan properti mana yang masih terjangkau. Memakai batas bawah
+    # (bug lama) membuat penjual seharga sedikit di atas min salah dinilai
+    # "over budget". PENJUAL: pakai harga yang tercantum (min lalu max).
+    if status == "CARI":
+        harga = harga_max or harga_min
+    else:
+        harga = harga_min or harga_max
+    if harga_min and harga_max and harga_min != harga_max:
+        catatan = (f"Range budget: Rp{harga_min:,}–Rp{harga_max:,}. " + catatan).strip()
     return {
         "status": status,
         "lokasi": data.get("lokasi", ""),

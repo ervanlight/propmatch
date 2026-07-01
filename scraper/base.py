@@ -10,10 +10,23 @@ filter relevansi wilayah, dan pembungkus aman supaya satu sumber yang error tida
 menjatuhkan sumber lain.
 """
 import logging
+import re
 
 import config
 
 logger = logging.getLogger(__name__)
+
+
+def _kw_in_text(keyword: str, text: str) -> bool:
+    """Cocokkan kata kunci dengan batas kata untuk kata tunggal (hindari
+    'max ' nyangkut di 'maximus', 'candi' di 'candid'); frasa multi-kata
+    dicocokkan apa adanya."""
+    keyword = keyword.strip()
+    if not keyword:
+        return False
+    if " " in keyword:
+        return keyword in text
+    return re.search(r"\b" + re.escape(keyword) + r"\b", text) is not None
 
 
 class BaseScraper:
@@ -41,10 +54,20 @@ class BaseScraper:
     # ----- utilitas bersama -------------------------------------------------
     @staticmethod
     def looks_like_buyer(text: str) -> bool:
+        """Sinyal NIAT BELI (demand-side) -- aset paling bernilai."""
         t = (text or "").lower()
-        return any(kw in t for kw in config.BUYER_KEYWORDS)
+        return any(_kw_in_text(kw, t) for kw in config.BUYER_KEYWORDS)
+
+    @staticmethod
+    def looks_like_property(text: str) -> bool:
+        """Apakah teks ini benar-benar soal PROPERTI (jual atau cari)? Dipakai
+        sebagai filter pra-AI: banyak postingan medsos menyebut nama wilayah
+        tapi bukan soal properti sama sekali. Tanpa ini, sampah non-properti
+        ikut terklasifikasi & mencemari database (dan memboroskan kuota AI)."""
+        t = (text or "").lower()
+        return any(_kw_in_text(kw, t) for kw in config.PROPERTY_KEYWORDS)
 
     @staticmethod
     def is_relevant_region(text: str) -> bool:
         t = (text or "").lower()
-        return any(region in t for region in config.TARGET_REGIONS)
+        return any(_kw_in_text(region, t) for region in config.TARGET_REGIONS)

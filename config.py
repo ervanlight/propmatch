@@ -84,6 +84,19 @@ BUYER_KEYWORDS = [
     "budget", "bujet", "maksimal", "max ", "siapa ada", "info dong",
 ]
 
+# Kata kunci KONTEKS PROPERTI (sisi jual maupun cari). Dipakai scraper untuk
+# memastikan sebuah postingan benar-benar soal properti SEBELUM dikirim ke AI —
+# banyak postingan medsos menyebut nama wilayah ("surabaya", "taman", "candi")
+# tapi sama sekali bukan soal properti. Tanpa filter ini, sampah non-properti
+# ikut terklasifikasi & mencemari database (dan membuang kuota AI).
+PROPERTY_KEYWORDS = [
+    "rumah", "ruko", "tanah", "kavling", "kaveling", "apartemen", "apartement",
+    "gudang", "villa", "vila", "kos", "kost", "hunian", "properti", "property",
+    "dijual", "di jual", "jual", "dicari", "di cari", "wtb", "wts",
+    "over kredit", "overkredit", "take over", "kpr", "shm", "hgb", "petok",
+    "perumahan", "cluster", "kluster", "kpr subsidi", "nego",
+]
+
 # Wilayah fokus untuk memfilter listing yang relevan secara geografis.
 TARGET_REGIONS = [
     "sidoarjo", "surabaya", "waru", "gedangan", "sedati", "taman", "krian",
@@ -91,6 +104,30 @@ TARGET_REGIONS = [
     "gunung anyar", "wonocolo", "wiyung", "lakarsantri", "sukolilo", "gubeng",
     "juanda", "aloha", "bungurasih",
 ]
+
+# Nama kota/daerah yang terlalu LUAS untuk dianggap "lokasi presisi" saat
+# matching. Dua listing yang cuma menyebut "surabaya" belum tentu berdekatan
+# (Surabaya sangat besar) — jadi kecocokan lokasi mereka TIDAK boleh dinilai
+# 100% seperti kalau sama-sama menyebut kecamatan spesifik ("waru").
+VAGUE_LOCATION_TOKENS = {
+    "surabaya", "sidoarjo", "sby", "sda", "surabaya kota",
+    "jawa timur", "jatim", "jawatimur", "indonesia",
+}
+
+# Penanda WILAYAH LAIN di luar fokus Sidoarjo–Surabaya (dan ring terdekatnya).
+# Kalau lokasi/teks JELAS menyebut salah satu ini DAN tidak menyebut wilayah
+# target, listing ditolak di gerbang ingest (store.save_listing) supaya
+# database tidak tercemar lead luar-area. Sengaja hanya memuat kota yang
+# JELAS jauh (bukan ring Gerbangkertosusila seperti Gresik/Mojokerto yang
+# masih mungkin dilayani Harvey) agar tidak salah-tolak lead yang valid.
+OUT_OF_AREA_MARKERS = {
+    "jakarta", "bekasi", "depok", "bogor", "tangerang", "serpong", "bsd",
+    "cikarang", "karawang", "bandung", "cimahi", "semarang", "yogyakarta",
+    "jogja", "sleman", "bantul", "solo", "surakarta", "malang", "kota malang",
+    "kabupaten malang", "kediri", "madiun", "jember", "banyuwangi", "probolinggo",
+    "bali", "denpasar", "badung", "medan", "makassar", "balikpapan", "samarinda",
+    "pontianak", "batam", "pekanbaru", "palembang", "lampung", "manado",
+}
 
 # ---------------------------------------------------------------------------
 # Path penyimpanan data
@@ -154,8 +191,43 @@ MATCH_WEIGHTS = {
     "pembayaran": 5,     # kecocokan metode bayar (KPR/cash)
 }
 
-# Skor minimum (0-100) agar sebuah pasangan dianggap "match" layak.
-MATCH_THRESHOLD = 55
+# Skor minimum (0-100) agar sebuah pasangan dianggap "match" layak. Dinaikkan
+# dari 55 -> 60 seiring pemasangan aturan-pembatal (gate) di matcher: sekarang
+# pasangan yang lolos gate memang harus benar-benar cocok, jadi ambang boleh
+# lebih tinggi tanpa membuang match yang bagus.
+MATCH_THRESHOLD = 60
 
-# Toleransi harga: pencari biasanya mau properti sampai +X% dari budget.
+# Toleransi harga LUNAK: pencari biasanya masih mau properti sampai +X% dari
+# budget (dinilai bagus, bukan pembatal).
 PRICE_OVER_BUDGET_TOLERANCE = 0.15  # 15% di atas budget masih dianggap cocok
+
+# ---------------------------------------------------------------------------
+# Aturan PEMBATAL (hard gate) matching. Ini kunci presisi: sebelum menghitung
+# skor berbobot, pasangan yang melanggar salah satu batas mutlak di bawah
+# LANGSUNG dibuang (bukan match), berapa pun tinggi skor dimensi lain. Tanpa
+# ini, penjumlahan berbobot bisa "menutupi" ketidakcocokan fatal — mis. harga
+# meleset 10x tertutup oleh lokasi & tipe yang kebetulan sama.
+# ---------------------------------------------------------------------------
+# Harga jual > budget +X% (KEDUANYA diketahui & masuk akal) -> BUKAN match.
+PRICE_HARD_OVER_TOLERANCE = 0.25
+# Harga jual < budget * X (mis. 10x lebih murah) -> mencurigakan (beda kelas/
+# salah data), tidak dibatalkan tapi tidak diberi nilai penuh.
+PRICE_TOO_CHEAP_RATIO = 0.30
+# Tipe properti beda & dua-duanya spesifik (bukan "lainnya") -> BUKAN match.
+TYPE_STRICT_KNOCKOUT = True
+# Dua lokasi sama-sama spesifik (kecamatan dikenal) tapi zonanya jauh (bukan
+# tetangga) -> BUKAN match.
+LOCATION_FAR_KNOCKOUT = True
+
+# Batas kewajaran harga properti di pasar Sidoarjo–Surabaya. Angka di luar
+# rentang ini dianggap SALAH PARSE / bukan harga sungguhan, lalu diperlakukan
+# sebagai "harga tidak diketahui" (bukan dipakai mentah). Contoh kasus nyata:
+# AI/parser sesekali mengembalikan "650" (maksudnya 650 juta) sebagai 650 rupiah.
+PRICE_MIN_PLAUSIBLE = 10_000_000          # Rp 10 juta
+PRICE_MAX_PLAUSIBLE = 500_000_000_000     # Rp 500 miliar
+
+# Kalau salah satu data KRITIS (harga/budget atau lokasi presisi) tidak
+# diketahui, pasangan masih boleh muncul TAPI skornya dibatasi maksimum ini
+# (mis. 6.9/10) dan diberi catatan "perlu konfirmasi" — supaya match berdata
+# tipis tidak tampil sebagai kecocokan tinggi yang menyesatkan.
+INCOMPLETE_DATA_SCORE_CAP = 69

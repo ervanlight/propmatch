@@ -83,7 +83,13 @@ class ThreadsScraper(BaseScraper):
                     for text, url in posts:
                         if url in seen_urls:
                             continue
+                        # Dua saringan wajib SEBELUM kirim ke AI: (1) menyebut
+                        # wilayah target, DAN (2) benar-benar soal properti.
+                        # Memangkas sampah non-properti di sumbernya (hemat kuota
+                        # AI + jaga database tetap bersih).
                         if not self.is_relevant_region(text):
+                            continue
+                        if not self.looks_like_property(text):
                             continue
                         seen_urls.add(url)
                         results.append({

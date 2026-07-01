@@ -102,6 +102,27 @@ def normalize_lokasi(value) -> str:
     return str(value).strip().lower()
 
 
+# Semua kecamatan/daerah spesifik yang dikenal (hasil ratakan LOCATION_CLUSTERS),
+# DIKURANGI token kota yang terlalu luas (VAGUE_LOCATION_TOKENS). Dipakai untuk
+# menilai apakah sebuah lokasi "presisi" (menyebut kecamatan) atau cuma
+# "level kota" (mis. bare "surabaya") — pembeda penting supaya matcher tidak
+# menilai dua "surabaya" sebagai kecocokan lokasi 100%.
+KNOWN_KECAMATAN = {kec for cluster in config.LOCATION_CLUSTERS for kec in cluster}
+SPECIFIC_KECAMATAN = {k for k in KNOWN_KECAMATAN if k not in config.VAGUE_LOCATION_TOKENS}
+
+
+def _token_in_text(token: str, text: str) -> bool:
+    """Cocokkan token ke teks. Frasa multi-kata dicocokkan apa adanya
+    (substring aman); kata tunggal dicocokkan dengan batas kata (\\b) supaya
+    tidak salah kena bagian kata lain (mis. 'candi' di 'candid', 'solo' di
+    'consolidasi')."""
+    if not token or not text:
+        return False
+    if " " in token:
+        return token in text
+    return re.search(r"\b" + re.escape(token) + r"\b", text) is not None
+
+
 def location_clusters(text: str) -> set:
     """Klaster wilayah (index ke config.LOCATION_CLUSTERS) yang cocok dengan
     teks lokasi (SUDAH dinormalisasi). Dipakai untuk kedekatan lokasi
@@ -112,9 +133,60 @@ def location_clusters(text: str) -> set:
     found = set()
     for i, cluster in enumerate(config.LOCATION_CLUSTERS):
         for kec in cluster:
-            if kec in text:
+            if _token_in_text(kec, text):
                 found.add(i)
     return found
+
+
+def location_precision(value) -> str:
+    """Seberapa presisi sebuah teks lokasi:
+      - 'specific' : menyebut kecamatan/daerah spesifik yang dikenal (mis. "waru").
+      - 'city'     : hanya menyebut nama kota luas (mis. "surabaya", "sidoarjo").
+      - 'unknown'  : kosong / tidak dikenali sama sekali.
+    Dipakai matcher untuk menolak menilai dua lokasi level-kota sebagai
+    kecocokan presisi, dan untuk gerbang pembatal 'lokasi jauh'."""
+    t = normalize_lokasi(value)
+    if not t:
+        return "unknown"
+    if any(_token_in_text(k, t) for k in SPECIFIC_KECAMATAN):
+        return "specific"
+    if any(_token_in_text(v, t) for v in config.VAGUE_LOCATION_TOKENS):
+        return "city"
+    return "unknown"
+
+
+def specific_location_tokens(value) -> set:
+    """Himpunan kecamatan spesifik yang disebut sebuah teks lokasi. Dipakai
+    matcher untuk membedakan 'kecamatan sama persis' (mis. dua-duanya 'waru')
+    dari sekadar 'satu zona berdekatan'."""
+    t = normalize_lokasi(value)
+    return {k for k in SPECIFIC_KECAMATAN if _token_in_text(k, t)}
+
+
+def plausible_price(value) -> int:
+    """Kembalikan harga apa adanya kalau masuk akal untuk properti di pasar
+    ini; kalau di luar rentang wajar (kemungkinan besar salah parse) kembalikan
+    0 = 'tidak diketahui'. Mencegah harga ngawur (mis. 650 rupiah) dipakai
+    mentah dalam skoring dan menghasilkan match palsu yang tampak presisi."""
+    v = parse_harga(value)
+    if v <= 0:
+        return 0
+    if v < config.PRICE_MIN_PLAUSIBLE or v > config.PRICE_MAX_PLAUSIBLE:
+        return 0
+    return v
+
+
+def is_out_of_area(*texts) -> bool:
+    """True kalau teks (lokasi/raw) JELAS menyebut wilayah lain di luar fokus
+    Sidoarjo–Surabaya DAN tidak menyebut wilayah target sama sekali. Sengaja
+    konservatif (hanya menolak yang benar-benar yakin luar-area) supaya lead
+    valid tidak ikut terbuang. Dipakai gerbang ingest di store.save_listing."""
+    blob = " ".join(normalize_lokasi(t) for t in texts if t)
+    if not blob:
+        return False
+    if any(_token_in_text(r, blob) for r in config.TARGET_REGIONS):
+        return False  # ada penanda wilayah target -> jangan tolak
+    return any(_token_in_text(m, blob) for m in config.OUT_OF_AREA_MARKERS)
 
 
 def normalize_phone(raw: str) -> str:

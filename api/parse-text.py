@@ -38,15 +38,23 @@ class handler(BaseHTTPRequestHandler):
             data = ClaudeClassifier().classify_property(text, source_url="", source_name="Dashboard (paste manual)")
             status = str(data.get("status", "TIDAK_RELEVAN")).upper()
 
+            result = store.save_listing(data, source="telegram_forward") if status in ("JUAL", "CARI") else None
+
             if status not in ("JUAL", "CARI"):
                 body = json.dumps({
                     "ok": True, "relevan": False,
                     "message": "AI tidak yakin ini info jual/cari properti.",
                 }).encode("utf-8")
                 self.send_response(200)
+            elif result is None:
+                # Lolos JUAL/CARI tapi ditolak gerbang kualitas (luar wilayah fokus).
+                body = json.dumps({
+                    "ok": True, "relevan": False,
+                    "message": "Terdeteksi di luar wilayah fokus (Sidoarjo–Surabaya), tidak disimpan.",
+                }).encode("utf-8")
+                self.send_response(200)
             else:
                 item = normalize_listing(data)
-                result = store.save_listing(data, source="telegram_forward")
 
                 if status == "JUAL":
                     matches = engine.find_matches([item], store.get_pencari())

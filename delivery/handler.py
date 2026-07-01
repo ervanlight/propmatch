@@ -273,6 +273,11 @@ def _handle_listing(text: str) -> str:
     from models import normalize_listing
     item = normalize_listing(data)
     result = store.save_listing(data, source="telegram_forward")
+    if result is None:
+        # Ditolak gerbang kualitas (di luar wilayah fokus Sidoarjo–Surabaya).
+        return ("🌍 Ini terdeteksi di <b>luar wilayah fokus</b> (Sidoarjo–Surabaya), "
+                "jadi tidak saya simpan agar database tetap bersih. "
+                "Kalau ini keliru, sebutkan kecamatan Sidoarjo/Surabaya-nya lebih jelas.")
     listing_id = item["id"]
 
     label = "PENJUAL" if status == "JUAL" else "PENCARI"
