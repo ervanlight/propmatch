@@ -15,12 +15,6 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-GOOGLE_CREDENTIALS_FILE = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
-# Alternatif: isi seluruh JSON service account langsung sebagai env var (untuk
-# Vercel serverless yang tidak bisa diandalkan menyimpan file rahasia secara
-# persisten). Kalau diisi, ini diutamakan daripada GOOGLE_CREDENTIALS_FILE.
-GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
-GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
 
 # Model AI (Claude, berbayar tapi sangat murah). Haiku 4.5 cukup untuk tugas
 # ekstraksi/klasifikasi sederhana ini -- ~3.000 klasifikasi per $5.
@@ -67,17 +61,16 @@ FB_GROUPS = {
 }
 
 # Threads (Meta): kata kunci pencarian publik untuk menangkap niat beli/jual
-# RUMAH saja (scope produk: jual-beli rumah, BUKAN sewa/kontrakan/kos/ruko/
-# tanah/apartemen). PENTING: kata kunci PENDEK (2-3 kata) terbukti jauh lebih
-# efektif daripada frasa panjang & spesifik — index pencarian Threads sering
-# "No results" untuk frasa yang terlalu rinci (mis. "dicari rumah waru
-# sidoarjo"), tapi mengembalikan banyak hasil untuk frasa umum (mis. "rumah
-# sidoarjo", "jual rumah surabaya").
+# properti (scope produk: JUAL-BELI semua tipe, BUKAN sewa/kontrakan). PENTING:
+# kata kunci PENDEK (2-3 kata) terbukti jauh lebih efektif daripada frasa
+# panjang & spesifik — index pencarian Threads sering "No results" untuk frasa
+# yang terlalu rinci (mis. "dicari rumah waru sidoarjo"), tapi mengembalikan
+# banyak hasil untuk frasa umum (mis. "rumah sidoarjo", "jual rumah surabaya").
 THREADS_KEYWORDS = [
     k.strip() for k in os.getenv(
         "THREADS_KEYWORDS",
         "rumah sidoarjo,rumah surabaya,jual rumah surabaya,cari rumah surabaya,"
-        "dijual rumah sidoarjo,dicari rumah sidoarjo,jual beli rumah surabaya",
+        "ruko sidoarjo,tanah sidoarjo,apartemen surabaya,jual tanah sidoarjo",
     ).split(",") if k.strip()
 ]
 

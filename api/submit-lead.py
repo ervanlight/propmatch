@@ -1,10 +1,14 @@
 """
 Endpoint penerima submit form landing page (serverless, untuk deploy ke Vercel).
 
-Menerima POST JSON dari landing.html, lalu tulis ke Google Sheets (lihat
-database/google_sheets.py untuk alasan kenapa bukan langsung ke SQLite --
-filesystem Vercel tidak persisten). main.py menarik baris baru dari Sheets
-ke SQLite setiap pipeline harian jalan.
+Menulis LANGSUNG ke Turso lewat store.save_listing() -- tidak lewat Google
+Sheets sebagai kotak surat sementara. Alasan desain lama (relay Sheets)
+sudah tidak berlaku sejak migrasi ke Turso: Turso didesain persis untuk
+ditulis dari mana saja termasuk serverless, sama seperti api/parse-text.py
+dan api/dashboard.py. Data form sudah terstruktur (bukan teks bebas) jadi
+TIDAK perlu panggilan AI sama sekali -- gratis sepenuhnya & instan (dulu lead
+ini baru masuk sistem setelah Harvey klik "Jalankan Scraping" secara manual,
+padahal ini justru sumber data paling siap-pakai).
 """
 import os
 import sys
@@ -14,10 +18,11 @@ from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from database.google_sheets import GoogleSheetsLeads  # noqa: E402
-
 REQUIRED_FIELDS = ["nama", "wa", "lokasi"]
 MAX_FIELD_LEN = 500
+# Honeypot: field tersembunyi di form (lihat landing.html) yang manusia tidak
+# akan pernah isi, tapi bot spam otomatis biasanya isi semua field yang ada.
+HONEYPOT_FIELD = "website"
 
 
 def _clean(value: str) -> str:
@@ -27,6 +32,30 @@ def _clean(value: str) -> str:
 def _valid_phone(wa: str) -> bool:
     digits = re.sub(r"[^\d]", "", wa or "")
     return 9 <= len(digits) <= 15
+
+
+def _build_listing(kind: str, data: dict) -> dict:
+    from models import parse_harga
+
+    status = "JUAL" if kind == "jual" else "CARI"
+    catatan = data.get("catatan", "")
+    harga = parse_harga(data.get("harga_min") or data.get("harga_max") or 0)
+    return {
+        "status": status,
+        "lokasi": data.get("lokasi", ""),
+        "harga": harga,
+        "tipe_properti": data.get("tipe_properti") or "Lainnya",
+        "LT_LB": "",
+        "KT_KM": "",
+        "kontak": data.get("wa", ""),
+        "urgensi": "Normal",
+        "metode_bayar": "",
+        "kualitas_lead": "WARM",
+        "catatan_ai": (f"Lead dari landing page ({data.get('nama', '-')}). " + catatan).strip(),
+        "source_url": data.get("foto_url", ""),
+        "source_name": "Landing Page",
+        "raw_text": f"{data.get('nama', '')} | {data.get('lokasi', '')} | {catatan}",
+    }
 
 
 class handler(BaseHTTPRequestHandler):
@@ -55,6 +84,12 @@ class handler(BaseHTTPRequestHandler):
             self._send_json(400, {"ok": False, "error": "JSON tidak valid."})
             return
 
+        # Honeypot terisi -> hampir pasti bot. Balas sukses palsu (jangan
+        # beri sinyal ke bot bahwa dia kena filter) tapi JANGAN simpan apapun.
+        if _clean(payload.get(HONEYPOT_FIELD)):
+            self._send_json(200, {"ok": True, "message": "Terima kasih! Data Anda sudah kami terima."})
+            return
+
         kind = _clean(payload.get("type")).lower()
         if kind not in ("jual", "cari"):
             self._send_json(400, {"ok": False, "error": "Field 'type' harus 'jual' atau 'cari'."})
@@ -74,8 +109,10 @@ class handler(BaseHTTPRequestHandler):
                  "foto_url", "catatan")}
 
         try:
-            sheets = GoogleSheetsLeads()
-            ok = sheets.submit_lead(kind, data)
+            import store
+            listing = _build_listing(kind, data)
+            result = store.save_listing(listing, source="landing_page")
+            ok = result is not None
         except Exception as e:
             print("Submit lead error:", e)
             ok = False
