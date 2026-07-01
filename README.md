@@ -37,6 +37,11 @@ Atur sumber scraper aktif lewat `ENABLED_SCRAPERS=threads` (atau tambah
 `olx`) di `.env`. Facebook Group sengaja tidak diotomasi (lihat komentar di
 `scraper/facebook_scraper.py`) — forward manual ke bot Telegram sebagai gantinya.
 
+**Watchdog scraper:** kalau satu sumber (mis. Threads) menghasilkan 0 listing
+2x run scraping berturut-turut, sistem otomatis kirim alert Telegram terpisah
+(bukan cuma log warning) — tanda kemungkinan diblokir atau struktur halaman
+berubah. Lihat `main._check_scraper_watchdog`.
+
 ---
 
 ## 🚀 Cara Pakai Sehari-hari
@@ -58,9 +63,17 @@ Perintah bot:
 - `/status <id> <status>` → update status lead langsung dari Telegram
   (`new` / `contacted` / `negotiating` / `closed` / `lost`)
 - `/matchstatus <id_penjual> <id_pencari> <status>` → tandai satu pasangan match
+- `/hapus <id>` → buang listing salah-klasifikasi/duplikat/spam
+- `/rekap` atau `/rekap bulan` → rekap performa 7/30 hari terakhir (lead
+  baru, closing rate, rata-rata waktu lead→closed)
 - `/reminder` → lead "contacted" yang belum di-follow-up >3 hari
 - `/stats` → ringkasan jumlah data
 - `/help` → bantuan
+
+Dedup lintas-sumber otomatis: listing yang sama diforward manual setelah
+sebelumnya kescrape (atau sebaliknya) tetap dikenali sebagai satu lead yang
+sama walau teksnya beda kata-kata — dicocokkan lewat nomor kontak, atau
+kombinasi tipe+lokasi+harga berdekatan (lihat `store._find_fuzzy_duplicate`).
 
 ### 2. Buka dashboard live kapan saja
 Dashboard (lihat bagian Deploy) render langsung dari Turso setiap dibuka —
@@ -72,6 +85,9 @@ tidak perlu tunggu redeploy. Dari sana Anda bisa:
 - Tombol **🎯 Match Ulang** — hitung ulang skor match dari data terkini (instan).
 - Tombol **📋 Paste & Parse** — tempel teks listing, AI langsung proses & simpan.
 - Update status lead/match langsung dari tabel/kartu.
+- Tab **Insight** → **🎯 Motivated Seller Radar**: penjual aktif yang harganya
+  ≥15% di bawah rata-rata tipe propertinya sendiri, sinyal kuat "butuh uang
+  cepat" walau teks listingnya sendiri tidak bilang begitu.
 
 ### 3. Trigger scraping manual (bukan terjadwal)
 Scraping SENGAJA tidak berjalan otomatis (lihat `.github/workflows/scrape.yml`)
