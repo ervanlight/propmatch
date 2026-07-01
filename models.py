@@ -97,6 +97,13 @@ def normalize_listing(data: dict) -> dict:
     if status not in VALID_STATUS:
         status = "TIDAK_RELEVAN"
 
+    # Safety-net scope: sistem ini KHUSUS jual-beli rumah -- kalau AI keliru
+    # meloloskan tipe properti lain (ruko/tanah/kos/apartemen/gudang/villa),
+    # paksa TIDAK_RELEVAN di sini supaya tidak pernah masuk database, apapun
+    # yang terjadi di prompt classifier.
+    if status in ("JUAL", "CARI") and normalize_tipe(data.get("tipe_properti")) != "rumah":
+        status = "TIDAK_RELEVAN"
+
     clean = {
         "status": status,
         "lokasi": normalize_lokasi(data.get("lokasi")),
