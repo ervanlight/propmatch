@@ -120,7 +120,19 @@ def get_connection() -> libsql_client.ClientSync:
         url=TURSO_DATABASE_URL,
         auth_token=TURSO_AUTH_TOKEN,
     )
-    _ensure_schema(client)
+    try:
+        _ensure_schema(client)
+    except Exception:
+        # Kalau schema-init gagal, client yang sudah terlanjur dibuat harus
+        # ditutup di sini -- client.execute() jalan lewat event loop di
+        # background thread milik libsql_client, dan thread itu TIDAK
+        # pernah berhenti sendiri kalau client tidak pernah di-close().
+        # Tanpa ini, proses Python jadi zombie (tidak pernah keluar) walau
+        # traceback sudah tercetak -- caller tidak sempat dapat referensi
+        # client untuk memanggil .close() sendiri karena exception ini
+        # dilempar sebelum sampai ke `return client`.
+        client.close()
+        raise
     return client
 
 
