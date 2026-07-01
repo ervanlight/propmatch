@@ -186,12 +186,11 @@ Cloud Console, share Sheet itu ke email service account, lalu isi
 `GOOGLE_SHEETS_ID` + `GOOGLE_SERVICE_ACCOUNT_JSON` di `.env` (lokal) dan di
 Secrets GitHub Actions / Environment Variables Vercel.
 
-**Cara sinkron:**
-- **Otomatis** setiap kali `python main.py` (pipeline scraping) selesai jalan.
-- **Manual kapan saja** lewat tombol **📊 Sinkronkan Google Sheets** di dashboard.
-
-Kalau kredensial belum diisi, fitur ini dilewati diam-diam (tidak mengganggu
-scraping/matching) — murni tambahan, bukan bagian yang wajib.
+**Sinkron berjalan sepenuhnya di belakang layar** — otomatis setiap kali
+`python main.py` (pipeline scraping) selesai jalan, tanpa perlu tombol atau
+langkah manual apapun. Ini sekarang jadi arsip permanen di luar Turso, jadi
+sinkron ini WAJIB (tidak best-effort diam-diam) — kalau gagal, pipeline tetap
+melaporkan errornya lewat log/Telegram supaya ketahuan.
 
 ---
 

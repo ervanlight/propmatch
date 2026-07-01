@@ -139,18 +139,28 @@ def run():
     except Exception as e:
         logger.error("Gagal generate dashboard: %s", e)
 
-    # 4b. Sinkronkan arsip Google Sheets (best-effort -- dilewati kalau belum
-    # dikonfigurasi, tidak pernah menggagalkan pipeline utama).
+    # 4b. Sinkronkan arsip Google Sheets -- WAJIB tiap selesai scraping (ini
+    # jadi arsip database berharga di luar Turso), tapi tetap tidak boleh
+    # menjatuhkan pipeline utama kalau gagal -- kegagalan dilaporkan tegas
+    # lewat Telegram (bukan cuma log diam-diam) supaya Harvey langsung sadar
+    # kalau arsipnya berhenti ter-update.
+    sheets_error = None
     if config.GOOGLE_SHEETS_ID:
         try:
             from integrations.google_sheets import sync_all
             sync_all()
+            logger.info("Sinkronisasi Google Sheets berhasil.")
         except Exception as e:
+            sheets_error = str(e)
             logger.error("Gagal sinkronisasi Google Sheets: %s", e)
+    else:
+        sheets_error = "GOOGLE_SHEETS_ID belum diatur"
 
     # 5. Laporan Telegram
     try:
         report = build_daily_report(s, penjual_baru, pencari_baru, top_matches, DASHBOARD_URL)
+        if sheets_error:
+            report += f"\n⚠️ Sinkron Google Sheets gagal: {sheets_error}"
         TelegramNotifier().send_message(report)
     except Exception as e:
         logger.error("Gagal kirim laporan Telegram: %s", e)

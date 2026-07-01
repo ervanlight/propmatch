@@ -35,7 +35,6 @@
         <button id="btn-scrape" onclick="runScrape()" class="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold">🌐 Jalankan Scraping</button>
         <button id="btn-match" onclick="runMatch()" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">🎯 Match Ulang</button>
         <button id="btn-paste" onclick="openPasteModal()" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">📋 Paste &amp; Parse</button>
-        <button id="btn-sheets" onclick="runSheetsSync()" class="px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold">📊 Sinkronkan Google Sheets</button>
         <button onclick="location.reload()" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-800">🔃</button>
         <button id="theme-toggle" class="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm hover:bg-gray-100 dark:hover:bg-gray-800">🌙</button>
       </div>
@@ -375,15 +374,6 @@
           toast('Match ulang selesai: ' + res.data.baru + ' baru, ' + res.data.disegarkan + ' disegarkan.');
           setTimeout(()=>location.reload(), 1200);
         } else toast('Gagal: ' + (res.data.error || 'unknown'));
-      }).catch(function(e){ restore(); toast('Gagal: ' + e); });
-    }
-
-    function runSheetsSync(){
-      var restore = setBusy('btn-sheets', '⏳ Menyinkronkan...');
-      apiPost('/api/sync-sheets', {}).then(function(res){
-        restore();
-        if(res.data.ok) toast(res.data.message || 'Sinkronisasi selesai.');
-        else toast('Gagal: ' + (res.data.error || 'unknown'));
       }).catch(function(e){ restore(); toast('Gagal: ' + e); });
     }
 

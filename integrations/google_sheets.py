@@ -145,9 +145,10 @@ def _write_sheet(spreadsheet, tab_name: str, headers: list, rows: list) -> None:
 def sync_all() -> dict:
     """Tulis ulang tab Penjual, Pencari, dan Ringkasan dari data TERKINI di
     Turso. Aman dipanggil kapan saja (idempoten) -- selalu menimpa, tidak
-    pernah menumpuk duplikat. Melempar exception kalau kredensial/spreadsheet
-    ID belum diisi -- caller (main.py / api/sync-sheets.py) yang menentukan
-    apakah kegagalan ini boleh diabaikan (best-effort) atau dilaporkan."""
+    pernah menumpuk duplikat. Dipanggil otomatis di akhir tiap pipeline
+    (main.py) -- tidak ada tombol manual, ini murni berjalan di belakang
+    layar. Melempar exception kalau kredensial/spreadsheet ID belum diisi --
+    main.py yang menangkap & melaporkan kegagalan ini lewat Telegram."""
     if not config.GOOGLE_SHEETS_ID:
         raise RuntimeError("GOOGLE_SHEETS_ID belum diisi di .env / environment.")
 

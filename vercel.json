@@ -9,7 +9,6 @@
     { "src": "api/update-status.py", "use": "@vercel/python" },
     { "src": "api/trigger-scrape.py", "use": "@vercel/python" },
     { "src": "api/scrape-status.py", "use": "@vercel/python" },
-    { "src": "api/sync-sheets.py", "use": "@vercel/python" },
     { "src": "landing.html", "use": "@vercel/static" }
   ],
   "routes": [
@@ -20,7 +19,6 @@
     { "src": "/api/update-status", "dest": "api/update-status.py" },
     { "src": "/api/trigger-scrape", "dest": "api/trigger-scrape.py" },
     { "src": "/api/scrape-status", "dest": "api/scrape-status.py" },
-    { "src": "/api/sync-sheets", "dest": "api/sync-sheets.py" },
     { "src": "/cari", "dest": "landing.html" },
     { "src": "/jual", "dest": "landing.html" },
     { "src": "/landing", "dest": "landing.html" },
