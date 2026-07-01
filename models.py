@@ -8,6 +8,7 @@ matcher & dashboard bisa mengandalkan bentuk data yang konsisten.
 import re
 import hashlib
 import datetime
+from zoneinfo import ZoneInfo
 
 import config
 
@@ -15,9 +16,48 @@ import config
 VALID_STATUS = {"JUAL", "CARI", "TIDAK_RELEVAN"}
 VALID_TIPE = {"rumah", "ruko", "kos", "tanah", "apartemen", "gudang", "villa", "lainnya"}
 
+# Semua timestamp di sistem ini WAJIB konsisten WIB (Asia/Jakarta), apapun
+# timezone host yang menjalankan kodenya -- laptop lokal, GitHub Actions
+# (Ubuntu runner, defaultnya UTC!), atau Vercel serverless. Tanpa ini,
+# created_at/updated_at bisa beda 7 jam tergantung dijalankan dari mana,
+# merusak perhitungan umur lead, rekap periode, dan dedup fuzzy berbasis
+# tanggal (store.py).
+try:
+    _JAKARTA_TZ = ZoneInfo("Asia/Jakarta")
+except Exception:
+    # Fallback kalau paket tzdata entah kenapa tidak terpasang di suatu
+    # environment (lihat requirements.txt) -- Indonesia tidak pakai DST,
+    # jadi offset tetap UTC+7 ini selalu valid, cuma kehilangan lookup
+    # nama zona resmi.
+    _JAKARTA_TZ = datetime.timezone(datetime.timedelta(hours=7))
+
+
+def now_wib() -> datetime.datetime:
+    """Waktu SEKARANG di zona WIB, sebagai datetime naive (tanpa info
+    timezone) -- supaya format string yang disimpan tetap sama seperti
+    sebelumnya (tanpa suffix +07:00) dan tetap bisa dibandingkan/diurutkan
+    apa adanya dengan timestamp lama yang sudah tersimpan."""
+    return datetime.datetime.now(_JAKARTA_TZ).replace(tzinfo=None)
+
 
 def now_iso() -> str:
-    return datetime.datetime.now().isoformat(timespec="seconds")
+    return now_wib().isoformat(timespec="seconds")
+
+
+def format_tanggal(iso_str: str, with_time: bool = True) -> str:
+    """Format tampilan WIB: DD-MM-YYYY (atau DD-MM-YYYY HH:MM WIB kalau
+    with_time). Dipakai di dashboard & pesan Telegram -- BUKAN untuk
+    disimpan (penyimpanan tetap format ISO YYYY-MM-DD supaya bisa
+    diurutkan/dibandingkan sebagai string apa adanya)."""
+    if not iso_str:
+        return "-"
+    try:
+        dt = datetime.datetime.fromisoformat(iso_str)
+    except ValueError:
+        return iso_str
+    if with_time:
+        return dt.strftime("%d-%m-%Y %H:%M") + " WIB"
+    return dt.strftime("%d-%m-%Y")
 
 
 def parse_harga(value) -> int:

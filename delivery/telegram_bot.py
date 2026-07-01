@@ -105,8 +105,8 @@ def format_rupiah(angka) -> str:
 
 def build_daily_report(stats: dict, penjual_baru: int, pencari_baru: int,
                        top_matches: list, dashboard_url: str = "") -> str:
-    import datetime
-    tanggal = datetime.datetime.now().strftime("%d %B %Y")
+    from models import now_wib
+    tanggal = now_wib().strftime("%d %B %Y") + " WIB"
 
     msg = (
         f"📊 <b>LAPORAN PROPERTI HARIAN</b>\n"

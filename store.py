@@ -10,7 +10,7 @@ import json as _json
 import logging
 
 import db
-from models import normalize_listing, normalize_phone, now_iso
+from models import normalize_listing, normalize_phone, now_iso, now_wib
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ def _find_fuzzy_duplicate(conn, table: str, item: dict) -> dict | None:
     if not (item.get("lokasi") and item.get("harga")):
         return None
 
-    cutoff = datetime.datetime.now() - datetime.timedelta(days=_FUZZY_MAX_AGE_DAYS)
+    cutoff = now_wib() - datetime.timedelta(days=_FUZZY_MAX_AGE_DAYS)
     best, best_diff = None, None
     for cand in candidates:
         if cand.get("tipe_properti") != item.get("tipe_properti"):
@@ -263,7 +263,7 @@ def update_lead_status(listing_id: str, new_status: str) -> bool:
 def get_stale_contacted(days: int = 3) -> list:
     """Lead berstatus 'contacted' yang belum diupdate lebih dari `days` hari."""
     import datetime
-    cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).isoformat(timespec="seconds")
+    cutoff = (now_wib() - datetime.timedelta(days=days)).isoformat(timespec="seconds")
     conn = db.get_connection()
     try:
         out = []
@@ -425,7 +425,7 @@ def get_recap(days: int = 7) -> dict:
     """
     import datetime
 
-    cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).isoformat(timespec="seconds")
+    cutoff = (now_wib() - datetime.timedelta(days=days)).isoformat(timespec="seconds")
     conn = db.get_connection()
     try:
         new_penjual = conn.execute(

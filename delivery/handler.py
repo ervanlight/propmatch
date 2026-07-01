@@ -16,6 +16,7 @@ import store
 from classifier.claude_classifier import ClaudeClassifier
 from matcher import engine
 from matcher.claude_matcher import ClaudeMatcher
+from models import format_tanggal
 from delivery.telegram_bot import (esc, format_rupiah, wa_link,
                                     draft_pesan_penjual, draft_pesan_pencari)
 
@@ -254,7 +255,7 @@ def _handle_reminder_command() -> str:
                     f"di {item.get('lokasi_display') or item.get('lokasi', '')}. "
                     f"Apakah masih berminat?")
         out += (f"\n• <b>{esc(label)}</b> <code>#{esc(item.get('id', ''))}</code>"
-               f" (sejak {esc(item.get('updated_at', '')[:10])})")
+               f" (sejak {esc(format_tanggal(item.get('updated_at', ''), with_time=False))})")
         if wa:
             out += f" — <a href='{esc(wa)}'>WA</a>"
     return out

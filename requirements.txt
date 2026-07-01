@@ -4,3 +4,4 @@ anthropic==0.113.0
 python-dotenv==1.0.1
 playwright==1.48.0
 libsql-client==0.3.1
+tzdata==2024.2

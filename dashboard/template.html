@@ -249,6 +249,20 @@
       return Math.floor((Date.now()-d.getTime())/86400000);
     }
 
+    // Semua timestamp dari server sudah dalam WIB (lihat models.now_wib()) --
+    // di sini cuma format ulang tampilannya jadi DD-MM-YYYY (bukan hitung
+    // ulang timezone, stringnya sudah WIB apa adanya).
+    function fmtTanggal(iso, withTime){
+      if(!iso) return '-';
+      var s = String(iso).replace('T',' ');
+      var datePart = s.slice(0,10), timePart = s.slice(11,16);
+      var parts = datePart.split('-');
+      if(parts.length !== 3) return s;
+      var out = parts[2]+'-'+parts[1]+'-'+parts[0];
+      if(withTime && timePart) out += ' '+timePart+' WIB';
+      return out;
+    }
+
     function toast(msg){
       var t = document.getElementById('toast');
       t.textContent = msg;
@@ -473,7 +487,7 @@
         + '<td class="px-3 py-2">'+badgeKualitas(item.kualitas_lead)+'</td>'
         + '<td class="px-3 py-2">'+badgeStatus(item.lead_status)+'</td>'
         + '<td class="px-3 py-2 text-xs text-gray-500 capitalize">'+esc(item.source||'-')+'</td>'
-        + '<td class="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">'+esc((item.created_at||'').replace('T',' ').slice(0,16))+'</td>'
+        + '<td class="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">'+esc(fmtTanggal(item.created_at, true))+'</td>'
         + '<td class="px-3 py-2">'+waLink(item.kontak)+(item.source_url?' <a href="'+esc(item.source_url)+'" target="_blank" class="text-xs text-blue-600 hover:underline">🔗</a>':'')+'</td>'
         + '<td class="px-3 py-2">'+statusActions(item.id)+'</td>'
         + '</tr>';
@@ -649,7 +663,7 @@
       var closed = matches.filter(x=>(x.status||'')==='closed').length;
       document.getElementById('stat-closed').textContent = closed;
       document.getElementById('stat-stale').textContent = stale.length;
-      if(s.last_run) document.getElementById('last-update').textContent = '🕒 Update: '+s.last_run.replace('T',' ');
+      if(s.last_run) document.getElementById('last-update').textContent = '🕒 Update: '+fmtTanggal(s.last_run, true);
 
       // Follow-up banner
       var banner = document.getElementById('stale-banner');
